@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Jira Data Center / Server ticket provider.** A Jira provider takes `flavor: "data-center"` for a self-hosted node: it signs in with a username + password (`authType: "basic"`, the default) or a personal access token sent as a Bearer header (`authType: "pat"`, Data Center 8.14+), and talks REST v2 (`/rest/api/2/search` with `startAt` paging, wiki-markup descriptions and comments) — Data Center has no email logins, API tokens, REST v3 or `/search/jql`, so every sync used to fail with HTTP 401 or 404. The credential stays in `apiToken` (encrypted as before). Settings → Tickets and the setup wizard pick Cloud or Data Center / Server and show the fields that flavor needs, plus an optional label to sync. Providers saved before stay Cloud, and a REST v3 401/404 from a self-hosted host now says to set the flavor.
+
 ### Changed
 
 - GitLab change-request threads must be resolvable and written by the token user, an assigned reviewer or a Developer-or-higher member. Review requests take precedence over auto-merge and unresolved review reads continue to block merging.
