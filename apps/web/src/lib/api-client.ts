@@ -1265,6 +1265,8 @@ export const api = {
         name: string;
         slug: string;
         role: string;
+        /** Admin because the caller is a deployment admin, not by membership. */
+        viaDeploymentAdmin?: boolean;
       }>;
     }>("/api/workspaces"),
 

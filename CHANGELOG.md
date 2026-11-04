@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Jira Data Center / Server ticket provider.** A Jira provider takes `flavor: "data-center"` for a self-hosted node: it signs in with a username + password (`authType: "basic"`, the default) or a personal access token sent as a Bearer header (`authType: "pat"`, Data Center 8.14+), and talks REST v2 (`/rest/api/2/search` with `startAt` paging, wiki-markup descriptions and comments) — Data Center has no email logins, API tokens, REST v3 or `/search/jql`, so every sync used to fail with HTTP 401 or 404. The credential stays in `apiToken` (encrypted as before). Settings → Tickets and the setup wizard pick Cloud or Data Center / Server and show the fields that flavor needs, plus an optional label to sync. Providers saved before stay Cloud, and a REST v3 401/404 from a self-hosted host now says to set the flavor.
+- **Deployment admins as admins of every workspace.** `OPTIO_DEPLOYMENT_ADMINS_ALL_WORKSPACES=true` (Helm `auth.deploymentAdminsAllWorkspaces`, off by default) makes deployment admins admins of every workspace, including ones they aren't members of — a role read on every request, never stored as a membership, so removing the role or the switch removes the access. `GET /api/workspaces` lists those workspaces marked `viaDeploymentAdmin` and the switcher labels them. Membership, not the grant, still decides whose private secrets a workspace admin may delete. See `docs/sign-in.md`.
 
 ### Changed
 
