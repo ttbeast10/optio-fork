@@ -51,6 +51,7 @@ import {
 } from "@/components/settings/jira-provider-form";
 import { WorkspaceCreationSettings } from "@/components/settings/workspace-creation-settings";
 import { OnboardingSettings } from "@/components/settings/onboarding-settings";
+import { DeploymentAdminsAllWorkspaces } from "@/components/settings/deployment-admins-all-workspaces";
 import { SignInSettings } from "@/components/settings/sign-in-settings";
 import { ReviewAgentPicker } from "@/components/review-agent-picker";
 import { AgentIcon, BrandIcon, brandFor } from "@/components/brand-icon";
@@ -1334,6 +1335,7 @@ function AuthenticationSettings() {
       <SignInSettings />
       <WorkspaceCreationSettings />
       <OnboardingSettings />
+      <DeploymentAdminsAllWorkspaces />
     </>
   );
 }
