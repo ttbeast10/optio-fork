@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Jenkins trigger.** A Jenkins build can start any work — a Repo Task, a Job, a Local automation or a persistent agent's turn. Each `jenkins` trigger has its own URL (`/api/hooks/jenkins/<id>`) and shared secret, takes the Notification plugin's JSON or a Jenkinsfile `post` step, filters on result (`started` / `succeeded` / `failed` / `unstable` / `aborted` / `not_built`), job (with `*` globs) and branch, and hands the build's job, number, URL, branch, commit, parameters and log tail to the prompt. One build result starts one run, however many phases Jenkins reports. See `docs/jenkins.md`. The iOS and Android forms don't offer it yet.
+
 ## [0.24.2] - 2026-11-06
 
 ### Fixed
