@@ -145,6 +145,16 @@ questions:
     description: Optio creates each project's webhook itself, with a secret it makes. Set this only for webhooks you add by hand in GitLab (their "Secret token").
     type: password
     group: GitLab
+  - variable: jenkins.url
+    label: Jenkins URL (optional)
+    description: The Jenkins that builds your repos, e.g. https://jenkins.example.com. A repo that names its Jenkins job in its settings then waits for, reviews on and resumes from that job's builds. List the host under Allowed private hosts too.
+    type: string
+    group: Jenkins
+  - variable: jenkins.user
+    label: Jenkins user
+    description: The account Optio reads Jenkins as. Put its API token in a JENKINS_API_TOKEN secret (Settings → Secrets), or reference a Kubernetes secret as existingSecrets.JENKINS_API_TOKEN.
+    type: string
+    group: Jenkins
   - variable: outbound.allowedHosts
     label: Allowed private hosts
     description: 'Optio refuses to call private addresses unless they are listed here, and with a private registry everything is a private address. List the domains of the services Optio must call, one per row: GitLab, Jira, the model gateway, Coder, your webhook targets. Most networks need one entry, e.g. *.example.com. Names, *.suffix, IPs and CIDRs work. Leave it empty only if you turn on the switch below.'

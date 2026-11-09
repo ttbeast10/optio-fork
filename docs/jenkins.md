@@ -1,8 +1,13 @@
 # Jenkins
 
-Optio works with Jenkins in one direction today: **a Jenkins build starts Optio work.** A failed
-build on `main` can start a Repo Task that finds the cause and opens a fix; a nightly job can wake a
-persistent agent with its results; any build can start a Job or a Local automation on your machine.
+Optio works with Jenkins both ways:
+
+- **Jenkins as a trigger** — a Jenkins build starts Optio work. A failed build on `main` can start a
+  Repo Task that finds the cause and opens a fix; a nightly job can wake a persistent agent with its
+  results; any build can start a Job or a Local automation on your machine.
+- **Jenkins as CI** — the builds of a repo's Jenkins job count as its PRs' CI checks, so review on CI
+  pass, auto-resume on a failed build (with the build's console log) and auto-merge wait for Jenkins
+  the way they wait for GitHub checks or a GitLab pipeline.
 
 ## Jenkins as a trigger
 
@@ -130,3 +135,53 @@ spec:
 ```
 
 The secret lives only on the trigger row: after the first apply, copy it from the work's page.
+
+## Jenkins as CI
+
+Optio reads Jenkins' own API; Jenkins doesn't need to report anything to GitHub or GitLab.
+
+### Set it up
+
+1. **Where Jenkins is** (deployment): `JENKINS_URL` (Helm `jenkins.url`). Optio only ever calls
+   this host. A private Jenkins must also be allowed outbound: list its host in
+   `OPTIO_OUTBOUND_ALLOWED_HOSTS` (Helm `outbound.allowedHosts`), as for a self-managed GitLab.
+2. **Who Optio is to Jenkins**: a Jenkins user with read access to the jobs, and an API token for
+   it. `JENKINS_USER` (Helm `jenkins.user`) and `JENKINS_API_TOKEN` — a secret of that name in the
+   workspace or the organization (Settings → Secrets), else the environment (Helm
+   `existingSecrets.JENKINS_API_TOKEN`). No token = anonymous reads.
+3. **Which job builds a repo** (per repo): Repos → the repo → **Jenkins job**, e.g. `platform/api`.
+   Point it at the **multibranch pipeline** (its branch and PR jobs are found by themselves) or at a
+   single job that builds every commit. Not an organization folder: name the repo's own pipeline
+   inside it. In config as code: `spec.jenkinsJob` on the `Repo` manifest.
+
+### What happens
+
+For each PR head commit, Optio reads the job once (`api/json?tree=…`: each branch / PR job's newest
+builds, or the job's own) and keeps, per job, the newest build of that commit — matched on the
+commit Jenkins says it built (the git plugin's `lastBuiltRevision`, a branch source's revision, a
+GitHub PR's `pullHash` or a GitLab MR's head when Jenkins built the merge). Each becomes a check
+named `Jenkins <job>`:
+
+| Jenkins build                                        | Check                       |
+| ---------------------------------------------------- | --------------------------- |
+| building                                             | in progress                 |
+| `SUCCESS`                                            | passed                      |
+| `FAILURE`, `UNSTABLE`                                | failed                      |
+| `ABORTED`                                            | cancelled                   |
+| `NOT_BUILT`                                          | skipped                     |
+| no build of the commit yet, or Jenkins can't be read | one pending `Jenkins` check |
+
+They are added to the platform's own checks everywhere Optio reads checks: the PR watcher and the
+reconciler (review on CI pass, auto-resume, auto-merge), PR reviews, external PR reviews that wait
+for CI, and the Pull requests panel.
+
+**Pending until Jenkins answers.** A repo that names a Jenkins job waits for it like a required
+check: while Jenkins hasn't built the head commit (queued, or not picked up yet), or can't be
+reached, the PR has a pending `Jenkins` check and nothing merges on the platform's checks alone. A
+commit Jenkins never builds (a skipped branch, a filtered PR) keeps the PR waiting — clear the
+repo's Jenkins job if Optio shouldn't read it.
+
+**Fixing a failed build.** When auto-resume restarts an agent on a failed Jenkins build, its prompt
+names the failed builds and carries the end of each console log (`consoleText`, last 150 lines,
+secrets masked — the Jenkins token, token-shaped strings, `password=` values), read under
+`JENKINS_URL` whatever URL Jenkins reports. `OPTIO_CI_FAILURE_LOGS=false` turns the logs off.
