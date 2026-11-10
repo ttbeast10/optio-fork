@@ -50,6 +50,7 @@ Copy the directory (or the `.tar`) across, then from inside it:
 ./deploy.sh --load kind                     # kind   (kind:<cluster> for a named one)
 ./deploy.sh --load k3d                      # k3d    (k3d:<cluster>)
 ./deploy.sh --load minikube
+./deploy.sh --load k3s                      # k3s on this machine (sudo k3s ctr images import)
 ./deploy.sh --load registry:registry.corp.local/optio   # a real air gap: push, then pull
 ```
 
@@ -84,6 +85,9 @@ Things you will want to pass:
   value for, e.g. `--env GITLAB_OAUTH_BASE_URL=https://gitlab.corp.local`.
 - `--values my.yaml` for everything else the chart takes: ingress, storage
   classes, Jenkins (`jenkins.url`, `jenkins.user`), a private CA.
+- `--release <name>` when the Helm release isn't called `optio` (its
+  Deployment is `<name>-api`, its keys are read back from `<name>-config` and
+  `<name>-postgres-credentials`); give `check.sh` the same `--release`.
 
 By default the web is at <http://localhost:30310> and the API at
 <http://localhost:30400> (NodePorts). kind and k3d only expose those if the
@@ -152,7 +156,7 @@ needs `OPTIO_TOKEN` set to that admin's personal access token.
 ## 4. Check
 
 ```bash
-./check.sh
+./check.sh                      # --namespace / --release if not optio
 ```
 
 It verifies, and exits non-zero on a failure:

@@ -3,15 +3,17 @@
 # images, the offline switches are on, and this build's features are there.
 # Read-only except for one throwaway pod (the egress probe).
 #
-#   ./check.sh [--namespace optio] [--no-egress-probe]
+#   ./check.sh [--namespace optio] [--release optio] [--no-egress-probe]
 set -uo pipefail
 
 cd "$(dirname "$0")" || exit 1
 NS=optio
+RELEASE=optio
 PROBE=1
 while [ $# -gt 0 ]; do
   case "$1" in
     --namespace) NS="${2:?}"; shift ;;
+    --release) RELEASE="${2:?}"; shift ;;
     --no-egress-probe) PROBE=0 ;;
     -h | --help) sed -n '2,/^set -uo/p' "$0" | sed '$d; s/^# \{0,1\}//'; exit 0 ;;
     *) echo "Unknown option: $1" >&2; exit 2 ;;
@@ -25,11 +27,11 @@ bad() { echo "  FAIL  $*"; FAILED=$((FAILED + 1)); }
 note() { echo "  note  $*"; }
 k() { kubectl -n "$NS" "$@"; }
 # Run JavaScript in the API container (it has Node; the image has no curl).
-api_js() { k exec deploy/optio-api -c api -- node -e "$1" 2>/dev/null; }
+api_js() { k exec "deploy/$RELEASE-api" -c api -- node -e "$1" 2>/dev/null; }
 api_get() { api_js "fetch('http://127.0.0.1:'+(process.env.API_PORT||4000)+'$1').then(async r=>{process.stdout.write(r.status+' '+await r.text())}).catch(e=>{process.stdout.write('000 '+e.message)})"; }
 
 echo "== Pods"
-k rollout status deployment/optio-api --timeout=120s >/dev/null 2>&1 && ok "API + web deployment is rolled out" || bad "deployment/optio-api is not ready"
+k rollout status "deployment/$RELEASE-api" --timeout=120s >/dev/null 2>&1 && ok "API + web deployment is rolled out" || bad "deployment/$RELEASE-api is not ready"
 notready="$(k get pods --no-headers 2>/dev/null | awk '$3 != "Running" && $3 != "Completed" {print $1 " (" $3 ")"}')"
 [ -z "$notready" ] && ok "every pod is Running" || bad "pods not running: $(echo "$notready" | tr '\n' ' ')"
 pulls="$(k get events --no-headers 2>/dev/null | grep -E 'ErrImagePull|ImagePullBackOff|Failed to pull' | head -3)"
@@ -55,15 +57,15 @@ esac
 
 echo "== Offline switches"
 env_is() { # <container> <name> <expected>
-  got="$(k exec deploy/optio-api -c "$1" -- printenv "$2" 2>/dev/null)"
+  got="$(k exec "deploy/$RELEASE-api" -c "$1" -- printenv "$2" 2>/dev/null)"
   [ "$got" = "$3" ] && ok "$2=$3" || bad "$2 is '${got}' (want $3)"
 }
 env_is api OPTIO_UPDATE_CHECK false
 env_is api OPTIO_AGENT_OFFLINE true
 env_is web OPTIO_OFFLINE_UI true
-scope="$(k exec deploy/optio-api -c api -- printenv OPTIO_POD_SCOPE 2>/dev/null)"
+scope="$(k exec "deploy/$RELEASE-api" -c api -- printenv OPTIO_POD_SCOPE 2>/dev/null)"
 note "pod scope for repos without their own setting: ${scope:-repo}"
-hosts="$(k exec deploy/optio-api -c api -- printenv GITLAB_HOSTS 2>/dev/null)"
+hosts="$(k exec "deploy/$RELEASE-api" -c api -- printenv GITLAB_HOSTS 2>/dev/null)"
 note "GITLAB_HOSTS: ${hosts:-(not set: only gitlab.com and saved hosts are listed)}"
 
 echo "== This build's features"
