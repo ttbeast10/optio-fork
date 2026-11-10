@@ -1,0 +1,50 @@
+# Chart values for an air-gapped (or air-gap rehearsal) install from the bundle
+# deploy/airgap/bundle.sh makes. deploy.sh applies this file and sets what
+# varies per install (image tag, registry, keys, URL, auth) with --set.
+#
+# Every image here is in the bundle; nothing is pulled from the internet.
+
+api:
+  image:
+    repository: optio-api
+    pullPolicy: IfNotPresent
+  service:
+    type: NodePort
+    nodePort: 30400
+
+web:
+  image:
+    repository: optio-web
+    pullPolicy: IfNotPresent
+  service:
+    type: NodePort
+    nodePort: 30310
+  # Browsers load nothing from outside the deployment and get no outside links.
+  offline: true
+
+# No release check against ghcr.io, no in-app update.
+updates:
+  check: false
+
+agent:
+  image:
+    repository: optio-base
+    pullPolicy: IfNotPresent
+    prefix: "optio-"
+  imagePullPolicy: IfNotPresent
+  # The agent CLIs' telemetry, self-update and update checks off.
+  offline: true
+  # What a repo's pods are shared across: repo (default) | run. deploy.sh
+  # --pod-scope run sets it; a repo's own setting still wins.
+  podScope: repo
+
+# Tags instead of the chart's tag@digest pins: an image loaded from a tar has
+# no registry digest, so a digest reference would never match it.
+postgresql:
+  image:
+    repository: postgres
+    tag: "16"
+redis:
+  image:
+    repository: redis
+    tag: "7-alpine"
