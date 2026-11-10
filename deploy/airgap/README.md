@@ -23,8 +23,8 @@ Needs Docker (BuildKit) and this repository at the commit you want.
 git fetch origin claude/gitlab-hosts-pod-per-session-somjrh
 git checkout claude/gitlab-hosts-pod-per-session-somjrh
 
-deploy/airgap/bundle.sh 0.24.2-fork --tar
-# → release/optio-airgap-0.24.2-fork/  and  release/optio-airgap-0.24.2-fork.tar
+deploy/airgap/bundle.sh 0.25.0-fork --tar
+# → release/optio-airgap-0.25.0-fork/  and  release/optio-airgap-0.25.0-fork.tar
 ```
 
 Options worth knowing (`--help` lists all):
