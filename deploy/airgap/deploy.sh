@@ -9,6 +9,8 @@
 #                                             Kubernetes) — the default
 #                           kind[:<name>]     load into a kind cluster
 #                           k3d[:<name>]      import into a k3d cluster
+#                           k3s               import into this machine's k3s containerd
+#                                             (sudo k3s ctr images import)
 #                           minikube          load into minikube
 #                           registry:<prefix> push to a registry the cluster pulls
 #                                             from, e.g. registry:registry.corp.local/optio
@@ -23,6 +25,7 @@
 #                         for (repeatable), e.g. GITLAB_OAUTH_BASE_URL=https://gitlab.corp.local
 #     --pod-scope <s>     repo (default) | run: a pod per run for every repo
 #     --namespace <ns>    default optio
+#     --release <name>    the Helm release, default optio (its Deployment is <name>-api)
 #     --values <file>     extra chart values (repeatable), applied last — e.g. your
 #                         sign-in provider, ingress, storage classes
 #     --set <k=v>         extra helm --set (repeatable)
@@ -36,6 +39,7 @@ PUBLIC_URL=http://localhost:30310
 GITLAB_HOSTS=""
 POD_SCOPE=""
 NS=optio
+RELEASE=optio
 EXTRA=()
 ENVS=()
 DRY=0
@@ -48,6 +52,7 @@ while [ $# -gt 0 ]; do
     --env) ENVS+=("${2:?}"); shift ;;
     --pod-scope) POD_SCOPE="${2:?}"; shift ;;
     --namespace) NS="${2:?}"; shift ;;
+    --release) RELEASE="${2:?}"; shift ;;
     --values) EXTRA+=(-f "${2:?}"); shift ;;
     --set) EXTRA+=(--set "${2:?}"); shift ;;
     --dry-run) DRY=1 ;;
@@ -83,6 +88,7 @@ if [ "$DRY" = 0 ]; then
     kind | kind:*) need docker; need kind ;;
     k3d | k3d:*) need docker; need k3d ;;
     minikube) need docker; need minikube ;;
+    k3s) need k3s ;;
     *) need docker ;;
   esac
   echo "== Loading images ($LOAD)"
@@ -103,6 +109,10 @@ if [ "$DRY" = 0 ]; then
       gunzip -c images.tar.gz | docker load >/dev/null
       for img in "${IMAGES[@]}"; do minikube image load "$img"; done
       ;;
+    k3s)
+      # Straight into the node's containerd, under the names images.txt lists.
+      gunzip -c images.tar.gz | sudo k3s ctr -n k8s.io images import - >/dev/null
+      ;;
     registry:*)
       REGISTRY="${LOAD#registry:}"; REGISTRY="${REGISTRY%/}"
       gunzip -c images.tar.gz | docker load >/dev/null
@@ -120,12 +130,12 @@ case "$LOAD" in registry:*) REGISTRY="${LOAD#registry:}"; REGISTRY="${REGISTRY%/
 # Keys live in the cluster once installed; reuse them so an upgrade doesn't
 # lock the database or the stored secrets.
 secret() { kubectl get secret "$1" -n "$NS" -o "jsonpath={.data.$2}" 2>/dev/null | base64 -d 2>/dev/null || true; }
-ENC_KEY="$(secret optio-config OPTIO_ENCRYPTION_KEY)"
+ENC_KEY="$(secret "$RELEASE-config" OPTIO_ENCRYPTION_KEY)"
 [ -n "$ENC_KEY" ] || ENC_KEY="$(rand 32)"
-PG_PASS="$(secret optio-postgres-credentials POSTGRES_PASSWORD)"
+PG_PASS="$(secret "$RELEASE-postgres-credentials" POSTGRES_PASSWORD)"
 [ -n "$PG_PASS" ] || PG_PASS="$(rand 16)"
 
-ARGS=(upgrade --install optio ./chart -n "$NS" --create-namespace
+ARGS=(upgrade --install "$RELEASE" ./chart -n "$NS" --create-namespace
   -f values.airgap.yaml
   --set "api.image.tag=$VERSION" --set "web.image.tag=$VERSION" --set "agent.image.tag=$VERSION"
   --set "encryption.key=$ENC_KEY" --set "postgresql.auth.password=$PG_PASS"
@@ -143,7 +153,7 @@ SETUP_TOKEN=""
 if [ "$AUTH" = disabled ]; then
   ARGS+=(--set auth.disabled=true)
 else
-  SETUP_TOKEN="$(secret optio-config OPTIO_SETUP_TOKEN)"
+  SETUP_TOKEN="$(secret "$RELEASE-config" OPTIO_SETUP_TOKEN)"
   [ -n "$SETUP_TOKEN" ] || SETUP_TOKEN="$(rand 24)"
   ARGS+=(--set auth.disabled=false --set "auth.setupToken=$SETUP_TOKEN")
 fi
@@ -176,18 +186,18 @@ if [ "${#ENVS[@]}" -gt 0 ]; then
     --dry-run=client -o yaml | kubectl apply -f - >/dev/null
 fi
 EXISTED=0
-kubectl get deployment optio-api -n "$NS" >/dev/null 2>&1 && EXISTED=1
+kubectl get deployment "$RELEASE-api" -n "$NS" >/dev/null 2>&1 && EXISTED=1
 helm "${ARGS[@]}" >/dev/null
 # A changed --env value lives in a Secret the Deployment only reads at start.
-[ "$EXISTED" = 0 ] || [ "${#ENVS[@]}" = 0 ] || kubectl rollout restart deployment/optio-api -n "$NS" >/dev/null
+[ "$EXISTED" = 0 ] || [ "${#ENVS[@]}" = 0 ] || kubectl rollout restart "deployment/$RELEASE-api" -n "$NS" >/dev/null
 echo "   waiting for the rollout (migrations run at boot)…"
-kubectl rollout status deployment/optio-api -n "$NS" --timeout=300s
+kubectl rollout status "deployment/$RELEASE-api" -n "$NS" --timeout=300s
 
 cat <<DONE
 
 Optio $VERSION is up in namespace $NS.
   Web:  $PUBLIC_URL
-  Next: ./check.sh${NS:+ --namespace $NS}        verify the install
+  Next: ./check.sh --namespace $NS --release $RELEASE        verify the install
 DONE
 if [ "$AUTH" = disabled ]; then
   echo "  Sign-in is OFF (rehearsal). The setup page asks for a git token and an agent key;"
