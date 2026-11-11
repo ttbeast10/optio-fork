@@ -5,6 +5,10 @@ upstream (`jonwiggins/optio`) and to test several of them together as one
 air-gap build before they go upstream. Nothing in `fork/` or `deploy/airgap/`
 ever goes into an upstream pull request.
 
+A session on the owner's machine (Docker, k3s, Playwright, `gh`) starts from
+`fork/LOCAL-SESSION.md`: tidy the branches, open the upstream pull requests,
+bundle, deploy and check.
+
 ## The branches
 
 | Branch                | What it is                                                                                           | Who writes it                  |
@@ -36,7 +40,7 @@ contains it).
 fork/sync.sh                 # fast-forward main to upstream, then the report below
 fork/status.sh               # per branch: based on main? applies alone? clean PR? merged?
 fork/integrate.sh --push     # rebuild fork/combined from branches.txt
-fork/pr.sh <branch>          # open the upstream pull request for one branch
+fork/pr.sh <branch>          # open the upstream pull request (description: fork/pr/<branch>.md)
 ```
 
 `status.sh` columns: `BASE` (`behind N` = rebase it), `ALONE` (`CONFLICT` =
