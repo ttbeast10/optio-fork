@@ -1,0 +1,17 @@
+# The topic branches that make up the combined branch (fork/combined), in merge
+# order. One branch = one pull request to upstream (jonwiggins/optio).
+#
+#   <branch>                    based on upstream main, its own upstream PR
+#   <branch> after <parent>     stacked: based on <parent>; goes upstream once
+#                               <parent> is merged there
+#
+# Remove a line when its PR is merged upstream: the change then comes from main.
+# fork/overlay (deploy/airgap/ and fork/) is always merged last and is not listed.
+
+fix/workspace-creation-race
+feat/jenkins-trigger
+feat/jenkins-ci after feat/jenkins-trigger
+feat/gitlab-host-picker
+feat/pod-per-run
+airgap/main-rebased                    # = feat/deployment-admins-all-workspaces, rebased (see README)
+feat/workspace-scoped-config-rebased   # = feat/workspace-scoped-config, rebased (see README)
