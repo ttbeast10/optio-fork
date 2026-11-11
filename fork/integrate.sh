@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Rebuild the combined branch from scratch:
 #
-#   main + every branch in fork/branches.txt (in order) + fork/overlay
+#   main + every branch in fork/branches.txt (in order)
+#        + fork/fixups/*.patch + fork/overlay
 #
 # The combined branch is generated, never edited: fix a bug on the topic
 # branch it belongs to and run this again. The build happens in a throwaway
@@ -98,10 +99,32 @@ else
   echo "Building $COMBINED on $(g rev-parse --short HEAD) ($MAIN)"
 fi
 
+# Two branches can merge cleanly and still not work together (one renames what
+# the other calls). fork/fixups/*.patch are applied, in name order, after the
+# topic branches and before the overlay: one commit each.
+apply_fixups() {
+  local patch name
+  for patch in "$FORK_DIR"/fixups/*.patch; do
+    [ -e "$patch" ] || continue
+    name="$(basename "$patch" .patch)"
+    if ! g apply --3way --index "$patch" >/dev/null 2>&1; then
+      g reset --quiet --hard
+      echo
+      echo "FIXUP $name no longer applies."
+      echo "It is for branches that may have changed or left branches.txt: update"
+      echo "or delete fork/fixups/$name.patch (its header says what it is for)."
+      return 1
+    fi
+    g commit --quiet -m "chore(fork): fixup $name"
+    echo "   fixup $name: applied"
+  done
+}
+
 while [ "${#todo[@]}" -gt 0 ]; do
   b="${todo[0]}"
   todo=("${todo[@]:1}")
   printf '%s\n' "${todo[@]}" >"$state"
+  if [ "$b" = "$OVERLAY" ]; then apply_fixups || exit 1; fi
   g rev-parse --verify --quiet "$FORK_REMOTE/$b" >/dev/null || die "$b is not on $FORK_REMOTE"
   merge_one "$b" "$FORK_REMOTE/$b" || exit 1
 done

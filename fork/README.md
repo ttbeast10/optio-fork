@@ -49,6 +49,22 @@ stops and tells you which; resolve in that worktree, commit, and run it with
 `--continue`. Each resolution is remembered (`git rerere`) and re-learned
 from the previous `fork/combined`, so it is made once.
 
+Two branches can also merge without a conflict and still break each other
+(one renames a function the other calls). `git` cannot see that; the
+typecheck and tests of `fork/combined` do. The repair goes in
+`fork/fixups/<nn>-<name>.patch` (a `git diff` with a few lines on top saying
+which branches it is for). `integrate.sh` applies every patch after the topic
+branches. When one of the two pull requests is merged upstream, the other
+must carry the change itself, and the patch is deleted.
+
+After every rebuild, check the combined code before bundling it:
+
+```bash
+git checkout fork/combined && pnpm install
+pnpm turbo typecheck && pnpm knip && pnpm turbo test
+pnpm --filter @optio/api test:integration
+```
+
 Then build, deploy and check the bundle from the combined branch, as
 `deploy/airgap/README.md` describes:
 
