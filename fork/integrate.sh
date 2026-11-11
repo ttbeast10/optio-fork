@@ -13,9 +13,10 @@
 # previous combined branch's merge commits, so each one is made once, also on
 # another machine.
 #
-# Usage: fork/integrate.sh [--push] [--continue] [--no-fetch]
+# Usage: [LEARN_FROM="<ref> ..."] fork/integrate.sh [--push] [--continue] [--no-fetch]
 #   --push      push the result to the fork (force-with-lease; it is rebuilt each time)
 #   --continue  carry on after you resolved a conflict in the worktree
+#   LEARN_FROM  extra branches to learn conflict resolutions from (their merge commits)
 set -euo pipefail
 # shellcheck source=fork/lib.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
@@ -88,6 +89,8 @@ else
   git worktree add --quiet --detach "$wt" "$FORK_REMOTE/$MAIN"
   echo "Learning earlier conflict resolutions"
   learn_from "$FORK_REMOTE/$COMBINED"
+  # Other branches whose merge commits hold resolutions worth reusing.
+  for old in ${LEARN_FROM:-}; do learn_from "$old"; done
   g checkout --quiet --detach "$FORK_REMOTE/$MAIN"
   todo=()
   while read -r branch _; do todo+=("$branch"); done < <(read_branches)

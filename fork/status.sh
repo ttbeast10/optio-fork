@@ -52,6 +52,12 @@ while read -r branch parent; do
     bad=1
     notes+=("$branch touches fork-only files: $(echo "$touched" | tr '\n' ' ')")
   fi
+  archives="$(git diff --name-only --diff-filter=A "$base_ref...$ref" | grep -E '\.(tar(\.[a-z0-9]+)?|tgz|zip|jar)$' || true)"
+  if [ -n "$archives" ]; then
+    pr="DIRTY"
+    bad=1
+    notes+=("$branch adds an archive: $(echo "$archives" | tr '\n' ' ')")
+  fi
   while read -r _ _ _ size path; do
     [ -n "$path" ] || continue
     if [ "$size" != "-" ] && [ "$size" -gt 1000000 ]; then
