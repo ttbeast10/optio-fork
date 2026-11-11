@@ -13,5 +13,5 @@ feat/jenkins-trigger
 feat/jenkins-ci after feat/jenkins-trigger
 feat/gitlab-host-picker
 feat/pod-per-run
-airgap/main-rebased                    # = feat/deployment-admins-all-workspaces, rebased (see README)
-feat/workspace-scoped-config-rebased   # = feat/workspace-scoped-config, rebased (see README)
+feat/deployment-admins-all-workspaces
+feat/workspace-scoped-config

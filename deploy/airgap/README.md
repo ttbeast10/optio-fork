@@ -20,11 +20,11 @@ inside the air gap. This bundle only carries images built outside.
 Needs Docker (BuildKit) and this repository at the commit you want.
 
 ```bash
-git fetch origin claude/gitlab-hosts-pod-per-session-somjrh
-git checkout claude/gitlab-hosts-pod-per-session-somjrh
+git fetch origin fork/combined
+git checkout fork/combined
 
-deploy/airgap/bundle.sh 0.25.0-fork --tar
-# → release/optio-airgap-0.25.0-fork/  and  release/optio-airgap-0.25.0-fork.tar
+deploy/airgap/bundle.sh 0.25.0-fork.2 --tar
+# → release/optio-airgap-0.25.0-fork.2/  and  release/optio-airgap-0.25.0-fork.2.tar
 ```
 
 Options worth knowing (`--help` lists all):

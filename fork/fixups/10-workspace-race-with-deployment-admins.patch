@@ -1,6 +1,7 @@
 Needed while BOTH of these are in fork/branches.txt:
   fix/workspace-creation-race  (passes its transaction to getUserRole)
-  airgap/main-rebased          (deployment admins: getUserRole now also honours
+  feat/deployment-admins-all-workspaces
+                               (deployment admins: getUserRole now also honours
                                 the deployment-admin grant and takes no transaction;
                                 the membership read became getMembershipRole)
 

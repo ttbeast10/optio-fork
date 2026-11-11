@@ -86,22 +86,3 @@ deploy/airgap/bundle.sh 0.25.0-fork.2 --tar
 4. `fork/pr.sh feat/my-change` when it is good.
 5. Upstream moved: `fork/sync.sh`, rebase what it flags
    (`git rebase upstream/main`, `git push --force-with-lease`), integrate again.
-
-## Branch names that still need tidying
-
-Two rebased branches sit under temporary names, because the session that
-rebased them was not allowed to overwrite the originals:
-
-- `airgap/main-rebased` is `feat/deployment-admins-all-workspaces` on current `main`.
-- `feat/workspace-scoped-config-rebased` is `feat/workspace-scoped-config` on current `main`.
-
-To put them under their real names (the old tips are in `backup/2026-11-11/`):
-
-```bash
-git push --force-with-lease origin origin/airgap/main-rebased:refs/heads/feat/deployment-admins-all-workspaces
-git push --force-with-lease origin origin/feat/workspace-scoped-config-rebased:refs/heads/feat/workspace-scoped-config
-```
-
-then use those names in `branches.txt` and delete the temporary branches.
-`airgap/main` (the old, hand-merged combined branch) and
-`claude/gitlab-hosts-pod-per-session-somjrh` are superseded by `fork/combined`.
