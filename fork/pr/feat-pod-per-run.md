@@ -32,9 +32,9 @@ A repo's runs share its long-lived pod (a worktree each), so whether a new run s
 - `pod-isolation.test.ts`: the shared key is unchanged, a key per run, scope precedence.
 - `e2e/pod-per-run.e2e.test.ts` (real API server, fake runtime): two tasks on one repo share a pod by default; with `podScope: run` they run in different pods; clearing it shares again.
 
-Run locally and passing: lint, knip, typecheck, prettier, migration prefix check, unit tests (API `--changed` 195 files, web all 151), the **full** API integration tier (103 files, applies the migration) and the full API e2e tier (38 files).
+Run locally and passing: lint, knip, typecheck, prettier, `check-infra` (Helm lint), unit tests (`--changed`), API coverage and integration (applies the migration), the full API e2e tier (39 files) and the full browser suite (155 tests).
 
-- [ ] `pnpm check:push` passes — **not run as a whole**: no Firefox / matching Chromium in the sandbox, so the browser suite did not run and the push skipped the local hook. `helm` was not available either: the chart change is one value and one env line, but `pnpm check:infra` has not run. Not exercised on a real cluster: PVC deletion with StatefulSets relies on `persistentVolumeClaimRetentionPolicy` (on by default from Kubernetes 1.27).
+- [ ] `pnpm check:push` passes (every check CI runs, sized to the change; `pnpm lint` and `pnpm knip` are the quick local checks). Not ticked: run as one command on my machine, the parallel API e2e and browser suites timed out under load. Each of them passes when run by itself. Not exercised on a real cluster: PVC deletion with StatefulSets relies on `persistentVolumeClaimRetentionPolicy` (on by default from Kubernetes 1.27).
 
 ## Related
 

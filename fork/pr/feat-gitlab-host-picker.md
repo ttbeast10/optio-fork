@@ -26,9 +26,9 @@ With more than one GitLab server set up, **Repos → Add Repository → GitLab**
 - `gitlab-repo-browser.test.tsx`: the server buttons, switching, no control with one host.
 - `e2e/gitlab-hosts.spec.ts` (Playwright, real web + API stack, the two GitLab servers stubbed at the browser): switch server, pick a project, the URL is on the chosen server.
 
-Run locally and passing: lint, knip, typecheck, prettier, unit tests (`--changed`), API integration (`--changed`), the full API e2e tier (37 files), and the new browser spec on Chromium.
+Run locally and passing: lint, knip, typecheck, prettier, API unit tests (`--changed`), API integration (`--changed`), the full API e2e tier (38 files) and the full browser suite.
 
-- [ ] `pnpm check:push` passes — **not run as a whole**: the sandbox this was written in has no Firefox and a different Chromium build than the pinned Playwright, so the full browser suite could not run there and the push skipped the local hook. CI should run it.
+- [ ] `pnpm check:push` passes (every check CI runs, sized to the change; `pnpm lint` and `pnpm knip` are the quick local checks). Not ticked: run as one command on my machine, the parallel API e2e suite timed out under load (it passes by itself), and one web unit file this change does not touch, `optio-chat-panel.test.tsx`, hits its 5 s test timeout there. It does the same on unmodified `main` on that machine and passes when run alone.
 
 ## Related
 

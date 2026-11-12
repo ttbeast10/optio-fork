@@ -23,9 +23,9 @@ New `apps/api/src/services/workspace-service.int.test.ts` runs against real Post
 - `completeSignIn()`'s bootstrap racing four request-time calls creates one workspace, which becomes the organization's. **Fails on `main`: a `workspaces_slug_unique` violation.**
 - Single calls: a new user gets one `Default` workspace they administer, saved as their default. An existing membership is returned and saved as the default. A stale default is replaced. An unknown user gets null.
 
-The new tests passed five runs in a row, and the existing sign-in integration tests and the workspace and auth unit tests pass. Lint, knip, typecheck, unit, integration and API e2e all pass. The browser e2e tier couldn't run in the environment I used (the Playwright browser build wasn't available), so CI is the check for that tier. This change touches no web code.
+The new tests passed five runs in a row, and the existing sign-in integration tests and the workspace and auth unit tests pass. Lint, knip, typecheck, unit, integration, API e2e (38 files) and the browser e2e suite (155 tests) all pass.
 
-- [ ] `pnpm check:push` passes (every check CI runs, sized to the change; `pnpm lint` and `pnpm knip` are the quick local checks). Everything except the browser tier passed locally; see above.
+- [ ] `pnpm check:push` passes (every check CI runs, sized to the change; `pnpm lint` and `pnpm knip` are the quick local checks). Not ticked: run as one command on my machine, the parallel API e2e and browser suites timed out under load. Each of them passes when run by itself.
 
 ## Related
 
