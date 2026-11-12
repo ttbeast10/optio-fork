@@ -45,7 +45,9 @@ So there are two things people call "main":
 
 Leftovers from before this layout (`airgap/main`,
 `claude/gitlab-hosts-pod-per-session-somjrh`, `ccr-…`, `feat/jira-data-center`)
-are superseded and can be deleted.
+are superseded and can be deleted. (`ccr-23adcbf3-lkw18x` and
+`ccr-23adcbf3-lkw18x-airgap`, fork PRs #5 and #6, were folded into
+`feat/workspace-scoped-config`.)
 
 ## The five rules
 
@@ -201,13 +203,13 @@ request), `STATE` (`N ahead`, or `merged upstream` = drop it from the list).
 As of 2026-11-12. `fork/status.sh` and
 `gh pr list --repo jonwiggins/optio --author ttbeast10` are the truth.
 
-| Branch                                  | Upstream     | Note                                                              |
-| --------------------------------------- | ------------ | ----------------------------------------------------------------- |
-| `fix/workspace-creation-race`           | #801         | Shares a function with #766: the second to merge needs the fixup. |
-| `feat/gitlab-host-picker`               | #802         |                                                                   |
-| `feat/pod-per-run`                      | #803         | Adds a migration; renumber on rebase if another lands first.      |
-| `feat/deployment-admins-all-workspaces` | #766         | See #801.                                                         |
-| `feat/workspace-scoped-config`          | #768         | Adds a migration.                                                 |
-| `feat/jenkins-trigger`                  | not opened   | Carries a stray `helm-0.4.tar.bz2`; remove it first.              |
-| `feat/jenkins-ci`                       | waits        | Stacked on `feat/jenkins-trigger`. Adds a migration.              |
-| Jira Data Center                        | #767, merged | In `main`; nothing left to do.                                    |
+| Branch                                  | Upstream     | Note                                                                                                                    |
+| --------------------------------------- | ------------ | ----------------------------------------------------------------------------------------------------------------------- |
+| `fix/workspace-creation-race`           | #801         | Shares a function with #766: the second to merge needs the fixup.                                                       |
+| `feat/gitlab-host-picker`               | #802         |                                                                                                                         |
+| `feat/pod-per-run`                      | #803         | Adds a migration; renumber on rebase if another lands first.                                                            |
+| `feat/deployment-admins-all-workspaces` | #766         | See #801.                                                                                                               |
+| `feat/workspace-scoped-config`          | #768         | Adds two migrations. Also carries per-workspace GitLab (was fork PRs #5 / #6), events per workspace, and the share tag. |
+| `feat/jenkins-trigger`                  | not opened   | Carries a stray `helm-0.4.tar.bz2`; remove it first.                                                                    |
+| `feat/jenkins-ci`                       | waits        | Stacked on `feat/jenkins-trigger`. Adds a migration.                                                                    |
+| Jira Data Center                        | #767, merged | In `main`; nothing left to do.                                                                                          |
