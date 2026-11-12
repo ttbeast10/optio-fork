@@ -190,6 +190,34 @@ would still succeed there. `check.sh` tells you when that is the case. To
 close it: turn the network off after `deploy.sh` finishes loading, or create
 the kind / k3d cluster on a Docker network with no route out.
 
+## Beside another Optio on the same machine
+
+The values use NodePorts 30310 (web) and 30400 (API). A second install on a
+cluster that already runs one needs its own namespace, release and ports:
+
+```bash
+./deploy.sh --load k3s --namespace optio-preview --release optio-preview \
+  --public-url http://localhost:31310 \
+  --set web.service.nodePort=31310 --set api.service.nodePort=31400
+GITLAB_TOKEN=… ANTHROPIC_API_KEY=… ./skip-setup.sh --api http://localhost:31400
+```
+
+Two things the first k3s rehearsal (Ubuntu 26.04, kernel 7.0) ran into:
+
+- `--load k3s` needs `sudo`. Without it, run a registry on the machine
+  (`docker run -d -p 127.0.0.1:5005:5000 registry:2`) and use
+  `--load registry:localhost:5005/optio`; containerd pulls from a `localhost`
+  registry over plain HTTP. A later `--load none` does not remember the
+  registry: repeat the `--load registry:…` (pushing again is quick).
+- The chart's Postgres pod crash-looped: the host's AppArmor profile for
+  containers denied Postgres signalling its own processes
+  (`could not signal for checkpoint: Permission denied`; `apparmor="DENIED"
+operation="signal"` in `journalctl -k`). That is the host, not the bundle.
+  The rehearsal used a Postgres outside the cluster instead
+  (`--values` with `postgresql.enabled: false` and `externalDatabase.url`);
+  `check.sh` then reports the repo columns as missing, because it asks the
+  Postgres pod. Check the real cluster's nodes for this before the first install.
+
 ## Limits
 
 - The chart's Postgres and Redis init containers use `busybox:1.36` by that
