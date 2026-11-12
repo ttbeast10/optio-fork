@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **GitLab credentials are per workspace.** A workspace admin adds the workspace's GitLab servers and tokens under **Workspace Settings → GitLab**; a token is used for that workspace's work only (cloning, MRs, CI, issues, reviews) and comes before the deployment's, so one team's credentials are never used by, or override, another's. The deployment's `GITLAB_TOKEN` / `GITLAB_HOST` now serve the founding workspace only — set `OPTIO_GITLAB_SHARE_DEPLOYMENT_CREDENTIALS=true` to keep sharing them with every workspace while teams add their own. A host must be `gitlab.com` or listed in `GITLAB_HOSTS`. The setup wizard's GitLab step saves the workspace's own server. See `docs/workspace-gitlab.md`.
+
 ## [0.24.2] - 2026-11-06
 
 ### Fixed
