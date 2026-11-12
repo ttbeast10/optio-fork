@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **GitLab credentials are per workspace.** A workspace admin adds the workspace's GitLab servers and tokens under **Workspace Settings → GitLab**; a token is used for that workspace's work only (cloning, MRs, CI, issues, reviews) and comes before the deployment's, so one team's credentials are never used by, or override, another's. The deployment's `GITLAB_TOKEN` / `GITLAB_HOST` now serve the founding workspace only — set `OPTIO_GITLAB_SHARE_DEPLOYMENT_CREDENTIALS=true` to keep sharing them with every workspace while teams add their own. A host must be `gitlab.com` or listed in `GITLAB_HOSTS`. The setup wizard's GitLab step saves the workspace's own server. See `docs/workspace-gitlab.md`.
+
 ### Added
 
 - **Jira Data Center / Server ticket provider.** A Jira provider takes `flavor: "data-center"` for a self-hosted node: it signs in with a username + password (`authType: "basic"`, the default) or a personal access token sent as a Bearer header (`authType: "pat"`, Data Center 8.14+), and talks REST v2 (`/rest/api/2/search` with `startAt` paging, wiki-markup descriptions and comments) — Data Center has no email logins, API tokens, REST v3 or `/search/jql`, so every sync used to fail with HTTP 401 or 404. The credential stays in `apiToken` (encrypted as before). Settings → Tickets and the setup wizard pick Cloud or Data Center / Server and show the fields that flavor needs, plus an optional label to sync. Providers saved before stay Cloud, and a REST v3 401/404 from a self-hosted host now says to set the flavor.

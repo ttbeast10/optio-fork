@@ -91,7 +91,10 @@ export function describeIssueSourceError(
   if (status === 401) {
     return {
       status,
-      message: `${label} rejected the stored token (401). Update the ${tokenName} secret (Setup → Git Provider) or reconnect your ${label} account.`,
+      message:
+        source === "gitlab"
+          ? "GitLab rejected the stored token (401). A workspace admin updates it under Workspace Settings → GitLab."
+          : `${label} rejected the stored token (401). Update the ${tokenName} secret (Setup → Git Provider) or reconnect your ${label} account.`,
     };
   }
   if (status === 403) {
@@ -211,6 +214,7 @@ export async function issueRoutes(rawApp: FastifyInstance) {
           const { platform } = await getGitPlatformForRepo(repo.repoUrl, {
             userId: req.user?.id,
             server: !req.user,
+            workspaceId: repo.workspaceId ?? null,
           }).catch(() => ({ platform: null }));
           if (!platform) {
             errors.push({
@@ -218,7 +222,10 @@ export async function issueRoutes(rawApp: FastifyInstance) {
               name: repo.fullName,
               repoId: repo.id,
               status: null,
-              message: `No ${repoSourceName === "gitlab" ? "GitLab" : "GitHub"} token is configured for this repo. Add a ${repoSourceName === "gitlab" ? "GITLAB_TOKEN" : "GITHUB_TOKEN"} secret or connect your account.`,
+              message:
+                repoSourceName === "gitlab"
+                  ? "No GitLab token is configured for this repo's server in this workspace. A workspace admin adds one under Workspace Settings → GitLab."
+                  : "No GitHub token is configured for this repo. Add a GITHUB_TOKEN secret or connect your account.",
             });
             continue;
           }
@@ -402,6 +409,7 @@ export async function issueRoutes(rawApp: FastifyInstance) {
       const { platform } = await getGitPlatformForRepo(repo.repoUrl, {
         userId: req.user?.id,
         server: !req.user,
+        workspaceId: repo.workspaceId ?? null,
       }).catch(() => ({ platform: null }));
       if (!platform) {
         return reply.status(503).send({ error: "No git token configured" });

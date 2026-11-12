@@ -542,9 +542,21 @@ export default function SetupPage() {
         await api.createSecret({ name: "GITHUB_TOKEN", value: githubToken });
       }
       if (gitlabEnabled && gitlabToken.trim() && gitlabValidated) {
-        await api.createSecret({ name: "GITLAB_TOKEN", value: gitlabToken });
-        if (gitlabHost && gitlabHost !== "gitlab.com") {
-          await api.createSecret({ name: "GITLAB_HOST", value: gitlabHost });
+        // The workspace's own GitLab server (Workspace Settings → GitLab):
+        // used for this workspace's work only, never another workspace's.
+        try {
+          await api.addWorkspaceGitLabServer({
+            host: gitlabHost.trim() || "gitlab.com",
+            token: gitlabToken.trim(),
+            isDefault: true,
+          });
+        } catch (err) {
+          // No workspace at all (sign-in turned off): the deployment's, as before.
+          if ((err as { details?: string }).details !== "no_workspace") throw err;
+          await api.createSecret({ name: "GITLAB_TOKEN", value: gitlabToken });
+          if (gitlabHost && gitlabHost !== "gitlab.com") {
+            await api.createSecret({ name: "GITLAB_HOST", value: gitlabHost });
+          }
         }
       }
       if (codecommitEnabled && awsAccessKeyId.trim() && awsSecretAccessKey.trim() && awsValidated) {
@@ -557,7 +569,9 @@ export default function SetupPage() {
       }
       goNext();
     } catch (err) {
-      toast.error("Failed to save git provider tokens");
+      toast.error("Failed to save git provider tokens", {
+        description: err instanceof Error ? err.message : undefined,
+      });
     }
     setLoading(false);
   };
