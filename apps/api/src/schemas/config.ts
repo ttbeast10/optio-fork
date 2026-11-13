@@ -4,6 +4,7 @@
  * the apply result they answer with. `manifestJsonSchema()` serves the same
  * shape as JSON Schema (`GET /api/config/schema.json`) for editors and CI.
  */
+import { validJenkinsJob } from "../utils/jenkins-job.js";
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import {
@@ -248,6 +249,11 @@ export const RepoSettingsSchema = z
     reviewTrigger: z.enum(["manual", "on_pr", "on_ci_pass"]).optional(),
     reviewPromptTemplate: z.string().nullable().optional(),
     testCommand: z.string().optional(),
+    jenkinsJob: z
+      .string()
+      .refine(validJenkinsJob, "Not a Jenkins job name (folder/job)")
+      .optional()
+      .describe("The Jenkins job that builds the repo, read as its PRs' CI (docs/jenkins.md)"),
     reviewAgentType: z
       .enum([...AGENT_TYPES] as [string, ...string[]])
       .superRefine(refineFeature("runtimes"))

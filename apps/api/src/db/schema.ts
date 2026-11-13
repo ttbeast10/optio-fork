@@ -435,6 +435,7 @@ export const repos = pgTable(
     reviewTrigger: text("review_trigger").default("on_ci_pass"), // "manual" | "on_pr" | "on_ci_pass"
     reviewPromptTemplate: text("review_prompt_template"), // null = use default
     testCommand: text("test_command"), // "npm test", "cargo test", etc.
+    jenkinsJob: text("jenkins_job"), // the Jenkins job building this repo (docs/jenkins.md); null = none
     reviewAgentType: text("review_agent_type"), // null = inherit (defaultAgentType / global)
     reviewModel: text("review_model").default("sonnet"), // can use cheaper model for reviews
     // External (non-optio-authored) PR auto-review

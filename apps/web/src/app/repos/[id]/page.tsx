@@ -114,6 +114,7 @@ export default function RepoDetailPage({ params }: { params: Promise<{ id: strin
   const [reviewEnabled, setReviewEnabled] = useState(false);
   const [reviewTrigger, setReviewTrigger] = useState("on_ci_pass");
   const [testCommand, setTestCommand] = useState("");
+  const [jenkinsJob, setJenkinsJob] = useState("");
   // null = inherit from repo's defaultAgentType / global setting.
   const [reviewAgentType, setReviewAgentType] = useState<AgentType | null>(null);
   const [reviewModel, setReviewModel] = useState("");
@@ -193,6 +194,7 @@ export default function RepoDetailPage({ params }: { params: Promise<{ id: strin
         setReviewEnabled(r.reviewEnabled ?? false);
         setReviewTrigger(r.reviewTrigger ?? "on_ci_pass");
         setTestCommand(r.testCommand ?? "");
+        setJenkinsJob(r.jenkinsJob ?? "");
         setReviewAgentType((r.reviewAgentType as AgentType | null) ?? null);
         setReviewModel(r.reviewModel ?? "");
         setEffectiveReviewAgentType(r.effectiveReviewAgentType ?? null);
@@ -273,6 +275,7 @@ export default function RepoDetailPage({ params }: { params: Promise<{ id: strin
         reviewEnabled,
         reviewTrigger,
         testCommand,
+        jenkinsJob: jenkinsJob.trim() || null,
         reviewAgentType,
         reviewModel: reviewModel || undefined,
         reviewPromptTemplate: showReviewPrompt ? reviewPromptTemplate : null,
@@ -1012,6 +1015,23 @@ export default function RepoDetailPage({ params }: { params: Promise<{ id: strin
                 </p>
               )}
             </PipelineStage>
+
+            <div className="pt-3 mt-1 border-t border-border/50">
+              <label className="block text-xs text-text-muted mb-1">Jenkins job</label>
+              <input
+                value={jenkinsJob}
+                onChange={(e) => setJenkinsJob(e.target.value)}
+                placeholder="platform/api"
+                className={inputClass({ className: "font-mono" })}
+                data-testid="repo-jenkins-job"
+              />
+              <p className="text-[10px] text-text-muted/60 mt-1">
+                When Jenkins builds this repo, its builds of a PR&apos;s head count as CI checks:
+                review on CI pass, auto-resume on a failed build (with its console log) and
+                auto-merge wait for them. A multibranch pipeline or a single job, under the
+                deployment&apos;s JENKINS_URL. Leave empty if Jenkins doesn&apos;t build it.
+              </p>
+            </div>
           </SectionCard>
 
           <SectionCard
