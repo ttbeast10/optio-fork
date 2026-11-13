@@ -174,13 +174,14 @@ Deploying the bundle to a cluster and checking it is in
 
 ## Commands
 
-| Command                      | Does                                                                             |
-| ---------------------------- | -------------------------------------------------------------------------------- |
-| `fork/sync.sh`               | Fast-forwards `main` to upstream, then prints the status report.                 |
-| `fork/status.sh`             | Per branch: based on `main`? applies alone? clean pull request? merged upstream? |
-| `fork/new-topic.sh <branch>` | A new topic branch from `main` in its own worktree, with the fork's agent notes. |
-| `fork/integrate.sh [--push]` | Rebuilds `fork/combined` from `branches.txt`, the fixups and `fork/overlay`.     |
-| `fork/pr.sh <branch>`        | Opens the upstream pull request, with `fork/pr/<branch>.md` as its description.  |
+| Command                      | Does                                                                              |
+| ---------------------------- | --------------------------------------------------------------------------------- |
+| `fork/sync.sh`               | Fast-forwards `main` to upstream, then prints the status report.                  |
+| `fork/status.sh`             | Per branch: based on `main`? applies alone? clean pull request? merged upstream?  |
+| `fork/new-topic.sh <branch>` | A new topic branch from `main` in its own worktree, with the fork's agent notes.  |
+| `fork/integrate.sh [--push]` | Rebuilds `fork/combined` from `branches.txt`, the fixups and `fork/overlay`.      |
+| `fork/pr.sh <branch>`        | Opens the upstream pull request, with `fork/pr/<branch>.md` as its description.   |
+| `fork/rebase.sh [<branch>…]` | Rebases topic branches onto upstream main in worktrees; CHANGELOG conflicts auto. |
 
 `status.sh` columns: `BASE` (`behind N` = rebase it), `ALONE` (`CONFLICT` =
 it no longer applies to `main` by itself), `PR` (`DIRTY` = not a clean pull
@@ -200,16 +201,18 @@ request), `STATE` (`N ahead`, or `merged upstream` = drop it from the list).
 
 ## Open upstream pull requests
 
-As of 2026-11-12. `fork/status.sh` and
-`gh pr list --repo jonwiggins/optio --author ttbeast10` are the truth.
+As of 2026-11-13. `fork/status.sh` and the daily scheduled check (which runs
+`fork/sync.sh` + `fork/rebase.sh`) are the truth.
 
 | Branch                                  | Upstream     | Note                                                                                                                    |
 | --------------------------------------- | ------------ | ----------------------------------------------------------------------------------------------------------------------- |
 | `fix/workspace-creation-race`           | #801         | Shares a function with #766: the second to merge needs the fixup.                                                       |
 | `feat/gitlab-host-picker`               | #802         |                                                                                                                         |
-| `feat/pod-per-run`                      | #803         | Adds a migration; renumber on rebase if another lands first.                                                            |
+| `feat/pod-per-run`                      | #803         | CodeQL reports one new high-severity alert; read it under the fork's code scanning (pr:4) and fix it on the branch.     |
 | `feat/deployment-admins-all-workspaces` | #766         | See #801.                                                                                                               |
 | `feat/workspace-scoped-config`          | #768         | Adds two migrations. Also carries per-workspace GitLab (was fork PRs #5 / #6), events per workspace, and the share tag. |
-| `feat/jenkins-trigger`                  | not opened   | Carries a stray `helm-0.4.tar.bz2`; remove it first.                                                                    |
-| `feat/jenkins-ci`                       | waits        | Stacked on `feat/jenkins-trigger`. Adds a migration.                                                                    |
+| `feat/jenkins-trigger`                  | to open      | Stray `helm-0.4.tar.bz2` removed (2026-11-13). Open with `fork/pr.sh feat/jenkins-trigger`.                             |
+| `feat/jenkins-ci`                       | to open      | Stacked on `feat/jenkins-trigger`; description in `fork/pr/feat-jenkins-ci.md` says so. Adds a migration.               |
 | Jira Data Center                        | #767, merged | In `main`; nothing left to do.                                                                                          |
+
+Migrations: #803, #768 and `feat/jenkins-ci` each add one; whichever lands later renumbers its journal entry on rebase.

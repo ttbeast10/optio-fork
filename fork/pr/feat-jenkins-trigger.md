@@ -4,7 +4,7 @@ feat(triggers): Jenkins builds start work
 
 Jenkins builds can start Optio work. `jenkins` becomes the fifteenth trigger type and attaches to any target: a Repo Task, a Job, a Local automation, or a persistent agent's turn.
 
-A follow-up pull request (Jenkins builds as a repo's CI checks) builds on this one and will be opened once this is merged.
+A follow-up pull request (Jenkins builds as a repo's CI checks) is stacked on this one.
 
 ## How it works
 
