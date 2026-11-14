@@ -1,10 +1,10 @@
 import { createHash } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { podIsolationKey, podRunId, resolvePodScope } from "./pod-isolation.js";
+import { podIsolationKey, podRunId, resolvePodScope, runPodIsolationKey } from "./pod-isolation.js";
 
 afterEach(() => vi.unstubAllEnvs());
 
-describe("podIsolationKey", () => {
+describe("runPodIsolationKey", () => {
   const boundary = { workspaceId: "ws-1", ownerUserId: "user-1", isolationPurpose: "work" };
 
   it("is unchanged for shared pods: existing pods keep matching their runs", () => {
@@ -14,15 +14,27 @@ describe("podIsolationKey", () => {
       .digest("hex")
       .slice(0, 32);
     expect(podIsolationKey(boundary)).toBe(before);
-    expect(podIsolationKey({ ...boundary, runId: null })).toBe(before);
+    expect(runPodIsolationKey(boundary)).toBe(before);
+    expect(runPodIsolationKey({ ...boundary, runId: null })).toBe(before);
   });
 
   it("gives each run its own key, stable across that run's retries", () => {
-    const a = podIsolationKey({ ...boundary, runId: "task-a" });
-    const b = podIsolationKey({ ...boundary, runId: "task-b" });
+    const a = runPodIsolationKey({ ...boundary, runId: "task-a" });
+    const b = runPodIsolationKey({ ...boundary, runId: "task-b" });
     expect(a).not.toBe(b);
     expect(a).not.toBe(podIsolationKey(boundary));
-    expect(podIsolationKey({ ...boundary, runId: "task-a" })).toBe(a);
+    expect(a).toHaveLength(32);
+    expect(runPodIsolationKey({ ...boundary, runId: "task-a" })).toBe(a);
+  });
+
+  it("still follows the boundary: new credentials mean a new pod for the same run", () => {
+    const a = runPodIsolationKey({ ...boundary, runId: "task-a" });
+    const changed = runPodIsolationKey({
+      ...boundary,
+      runId: "task-a",
+      credentialProfile: ["other-secrets"],
+    });
+    expect(changed).not.toBe(a);
   });
 });
 

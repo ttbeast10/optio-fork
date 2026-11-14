@@ -20,16 +20,31 @@ export interface PodIsolation {
 }
 
 export function podIsolationKey(scope: PodIsolation): string {
-  const boundary = [
-    "v1",
-    scope.workspaceId ?? null,
-    scope.ownerUserId ?? null,
-    scope.isolationPurpose ?? "work",
-    scope.credentialProfile ?? null,
-  ];
-  // Appended only when set: a shared pod's key is what it always was.
-  if (scope.runId) boundary.push(`run:${scope.runId}`);
-  return createHash("sha256").update(JSON.stringify(boundary)).digest("hex").slice(0, 32);
+  return createHash("sha256")
+    .update(
+      JSON.stringify([
+        "v1",
+        scope.workspaceId ?? null,
+        scope.ownerUserId ?? null,
+        scope.isolationPurpose ?? "work",
+        scope.credentialProfile ?? null,
+      ]),
+    )
+    .digest("hex")
+    .slice(0, 32);
+}
+
+/**
+ * The isolation key of a repo pod. Without `runId` it is `podIsolationKey`,
+ * so a shared pod's key is what it always was. With one (pod scope `run`) it
+ * keeps the boundary's key — a change of credentials still means a new pod —
+ * and adds the run's own digest, so no other run is ever given the pod.
+ */
+export function runPodIsolationKey(scope: PodIsolation): string {
+  const shared = podIsolationKey(scope);
+  if (!scope.runId) return shared;
+  const run = createHash("sha256").update(`run:${scope.runId}`).digest("hex");
+  return `${shared.slice(0, 16)}${run.slice(0, 16)}`;
 }
 
 /** DNS-safe names with a collision-resistant digest of the complete resource. */

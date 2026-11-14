@@ -53,5 +53,5 @@ Interactive sessions always had a pod of their own and are unaffected. Jobs
 (their pods are per Job, not per repo) and persistent agents (one pod per
 agent) are not covered by this setting.
 
-Code: `services/pod-isolation.ts` (`resolvePodScope`, the `runId` part of the
+Code: `services/pod-isolation.ts` (`resolvePodScope`, `runPodIsolationKey`: the `runId` part of the
 pod's isolation key), `services/repo-pool-service.ts`.

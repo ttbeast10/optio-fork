@@ -7,7 +7,7 @@ import { eq, and, sql } from "drizzle-orm";
 import { db } from "../db/client.js";
 import { agentPods, tasks, interactiveSessions, workspaces } from "../db/schema.js";
 import * as podPool from "./agent-pod-pool.js";
-import { podIsolationKey, isolatedPodResource, type PodIsolation } from "./pod-isolation.js";
+import { runPodIsolationKey, isolatedPodResource, type PodIsolation } from "./pod-isolation.js";
 import { getRuntime } from "./container-service.js";
 import type { ContainerHandle, ContainerSpec, RepoImageConfig } from "@optio/shared";
 import type { RunStartResult } from "@optio/container-runtime";
@@ -191,7 +191,7 @@ export async function getOrCreateRepoPod(
     const repoUrl = normalizeRepoUrl(rawRepoUrl);
     const createFn = isStatefulSetEnabled() ? createRepoPodViaStatefulSet : createRepoPod;
     return podPool.pickPod("repo", repoUrl, {
-      isolationKey: podIsolationKey(opts ?? {}),
+      isolationKey: runPodIsolationKey(opts ?? {}),
       preferredPodId: opts?.preferredPodId,
       maxAgentsPerPod: opts?.maxAgentsPerPod ?? 2,
       maxPodInstances: opts?.maxPodInstances ?? 1,
@@ -266,7 +266,7 @@ async function createRepoPod(
     }
   }
 
-  const isolationKey = podIsolationKey({ ...isolation, workspaceId });
+  const isolationKey = runPodIsolationKey({ ...isolation, workspaceId });
   const record = await podPool.insertPod({
     isolationKey,
     workspaceId,
@@ -575,7 +575,7 @@ async function createRepoPodViaStatefulSet(
     }
   }
 
-  const isolationKey = podIsolationKey({ ...isolation, workspaceId });
+  const isolationKey = runPodIsolationKey({ ...isolation, workspaceId });
   const stsName = isolatedPodResource("optio-repo", repoUrl, isolationKey);
   const podName = K8sWorkloadManager.podNameForOrdinal(stsName, instanceIndex);
 
