@@ -364,16 +364,43 @@ async function mayGetOwnWorkspace(userId: string): Promise<boolean> {
  * default). `"no-user"` when the user doesn't exist; otherwise `"none"`, with
  * a stale default (removed, or the workspace deleted) cleared.
  */
+/**
+ * Whether a saved default workspace still holds for the user: they are a
+ * member of it, or administer it through the deployment-admin grant.
+ * `adminEverywhere` null asks {@link getUserRole} (its own connection);
+ * inside a transaction pass the grant read beforehand, so the check stays on
+ * `tx` and never waits on the pool.
+ */
+async function defaultHolds(
+  workspaceId: string,
+  userId: string,
+  tx: Executor,
+  adminEverywhere: boolean | null,
+): Promise<boolean> {
+  if (adminEverywhere === null) return (await getUserRole(workspaceId, userId)) !== null;
+  if (await getMembershipRole(workspaceId, userId, tx)) return true;
+  if (!adminEverywhere) return false;
+  const [ws] = await tx
+    .select({ id: workspaces.id })
+    .from(workspaces)
+    .where(eq(workspaces.id, workspaceId));
+  return !!ws;
+}
+
 async function existingWorkspace(
   userId: string,
   tx: Executor,
+  adminEverywhere: boolean | null = null,
 ): Promise<string | "no-user" | "none"> {
   const [user] = await tx
     .select({ defaultWorkspaceId: users.defaultWorkspaceId })
     .from(users)
     .where(eq(users.id, userId));
   if (!user) return "no-user";
-  if (user.defaultWorkspaceId && (await getUserRole(user.defaultWorkspaceId, userId, tx))) {
+  if (
+    user.defaultWorkspaceId &&
+    (await defaultHolds(user.defaultWorkspaceId, userId, tx, adminEverywhere))
+  ) {
     return user.defaultWorkspaceId;
   }
 
@@ -418,14 +445,17 @@ export async function ensureUserHasWorkspace(userId: string): Promise<string | n
   // Read before taking the lock: the policy queries run on their own pool
   // connections, and a lock holder waiting on the pool while every other
   // connection waits on the lock would never finish.
-  const mayCreate = await mayGetOwnWorkspace(userId);
+  const [mayCreate, adminEverywhere] = await Promise.all([
+    mayGetOwnWorkspace(userId),
+    administersAllWorkspaces(userId),
+  ]);
 
   return db.transaction(async (tx) => {
     // Serialise concurrent calls for the same user; released at commit or rollback.
     await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${userId}, 0))`);
 
     // Another call may have made or joined one while this one waited.
-    const again = await existingWorkspace(userId, tx);
+    const again = await existingWorkspace(userId, tx, adminEverywhere);
     if (again === "no-user") return null;
     if (again !== "none") return again;
     if (!mayCreate) return null;
