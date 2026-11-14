@@ -1,21 +1,24 @@
 # GitLab repositories and issues
 
-On **Repositories → Add Repository**, a configured GitLab token or saved
-GitLab host makes the GitLab choice available next to GitHub. Select GitLab
+On **Repositories → Add Repository**, a GitLab server of the workspace's own
+(Workspace Settings → GitLab), a personal GitLab token, or — where the
+workspace may use them — the deployment's GitLab token or host makes the
+GitLab choice available next to GitHub. Select GitLab
 to search the projects your token can access, or paste a project URL and
 validate it. The selected platform is saved with the repository, so a
 self-managed GitLab hostname does not need to contain the word `gitlab`.
 Known public hosts retain their own platform.
 
-The browser lists the setup wizard's `GITLAB_HOST`, then the self-managed
-hosts in `GITLAB_HOSTS`, then the hosts of GitLab repositories the workspace
-already has, then `gitlab.com` when `GITLAB_HOSTS` names it (or when there is
-no other host). With more than one, the picker shows a button per server:
-click one to list its projects, searched with that server's token
-(`GITLAB_TOKEN_<HOST>`, else `GITLAB_TOKEN`). The first is listed by default.
-Credentials
-use the existing personal/workspace/deployment lookup and host-qualified
-tokens described in [GitLab tokens](gitlab-tokens.md). The deployment operator
+The browser lists the workspace's own GitLab servers (Workspace Settings →
+GitLab, its default first), then the setup wizard's deployment-wide
+`GITLAB_HOST` (where the workspace may use the deployment's GitLab), then the
+self-managed hosts in `GITLAB_HOSTS`, then the hosts of GitLab repositories
+the workspace already has, then `gitlab.com` when `GITLAB_HOSTS` names it (or
+when there is no other host). With more than one, the picker shows a button
+per server: click one to list its projects, searched with that server's
+token. The first is listed by default. Credentials use the
+personal → workspace → deployment lookup described in
+[Per-workspace GitLab credentials](workspace-gitlab.md). The deployment operator
 must list a custom destination in `GITLAB_HOSTS` before stored credentials
 are used. Private destinations also require the existing outbound policy
 configuration (`OPTIO_OUTBOUND_ALLOWED_HOSTS`). Validation without a supplied
