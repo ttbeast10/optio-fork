@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createHash, randomBytes } from "node:crypto";
-import { authCookieName, secureAuthCookies } from "../../../lib/auth-cookies.js";
+import {
+  authCookieName,
+  expiredSessionCookie,
+  secureAuthCookies,
+  sessionCookieIsDead,
+} from "../../../lib/auth-cookies.js";
 
 const INTERNAL_API_URL = process.env.INTERNAL_API_URL ?? "http://localhost:4000";
 
@@ -146,11 +151,34 @@ async function proxyRequest(request: NextRequest) {
       if (value) responseHeaders.set(name, value);
     }
 
-    const response = new NextResponse(apiRes.body, {
+    // A refused session: read the (small) refusal to tell a dead session from
+    // any other 401, such as a wrong LDAP password.
+    let body: BodyInit | null = apiRes.body;
+    let error: unknown;
+    if (sessionToken && !isMcp && apiRes.status === 401) {
+      const text = await apiRes.text();
+      body = text;
+      try {
+        error = (JSON.parse(text) as { error?: unknown }).error;
+      } catch {
+        error = undefined;
+      }
+    }
+
+    const response = new NextResponse(body, {
       status: apiRes.status,
       statusText: apiRes.statusText,
       headers: responseHeaders,
     });
+    // The API's own Set-Cookie is not forwarded (above), so the web deletes
+    // the cookie itself: on sign-out, and once the API refuses its session.
+    if (
+      sessionToken &&
+      !isMcp &&
+      sessionCookieIsDead(request.method, url.pathname, apiRes.status, error)
+    ) {
+      response.cookies.set(authCookieName("session"), "", expiredSessionCookie());
+    }
     if (isLdapLogin && apiRes.ok && browserVerifier) {
       response.cookies.set(authCookieName("oauth_verifier"), browserVerifier, {
         path: "/",
