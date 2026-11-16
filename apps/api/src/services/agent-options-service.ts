@@ -31,9 +31,62 @@ const CACHE_KEY_PREFIX = "optio:agent-options";
 interface ProbeCredential {
   value: string;
   kind: "api-key" | "oauth";
+  /**
+   * The endpoint to list models from, when not the provider's own (an
+   * Anthropic-compatible gateway such as a LiteLLM proxy, from
+   * `ANTHROPIC_BASE_URL`). Undefined = the provider's public API.
+   */
+  baseUrl?: string;
 }
 
 type LiveProbe = (credential: ProbeCredential) => Promise<LiveModel[]>;
+
+/** Anthropic's public API, which `ANTHROPIC_BASE_URL` replaces. */
+const ANTHROPIC_DEFAULT_BASE_URL = "https://api.anthropic.com";
+
+/**
+ * A base URL as Claude Code reads `ANTHROPIC_BASE_URL`: an http(s) origin,
+ * optionally with a path prefix the API's `/v1/...` paths are appended to.
+ * Returns the URL without a trailing slash, or undefined for anything else
+ * (blank, another scheme, credentials in the URL, not a URL).
+ */
+export function normalizeAnthropicBaseUrl(raw: string | null | undefined): string | undefined {
+  const value = raw?.trim();
+  if (!value) return undefined;
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return undefined;
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") return undefined;
+  if (url.username || url.password || url.search || url.hash) return undefined;
+  return `${url.origin}${url.pathname.replace(/\/+$/, "")}`;
+}
+
+/**
+ * Where the Anthropic list-models probe goes: an `ANTHROPIC_BASE_URL` global
+ * secret (looked up like the key the probe sends), else the API process's
+ * own `ANTHROPIC_BASE_URL`, else (undefined) Anthropic's public API. Both
+ * are set only by admins / the deployment, so the probe never sends the
+ * workspace's key to an endpoint a member chose. A connection's shell env
+ * (where the LiteLLM guide puts the variable for the agent pods) is not
+ * read: a member's private connection could otherwise point it anywhere.
+ */
+async function anthropicProbeBaseUrl(
+  workspaceId: string | null | undefined,
+): Promise<string | undefined> {
+  let fromSecret: string | undefined;
+  try {
+    fromSecret = normalizeAnthropicBaseUrl(
+      await retrieveSecret("ANTHROPIC_BASE_URL", "global", workspaceId ?? undefined),
+    );
+  } catch {
+    // Not configured — fall through to the process env.
+  }
+  const baseUrl = fromSecret ?? normalizeAnthropicBaseUrl(process.env.ANTHROPIC_BASE_URL);
+  return baseUrl === ANTHROPIC_DEFAULT_BASE_URL ? undefined : baseUrl;
+}
 
 /** Safety bound on list-models pagination — well above any real model count. */
 const MAX_PROBE_PAGES = 10;
@@ -74,24 +127,34 @@ export function anthropicEfforts(
   return levels.sort((a, b) => rank(a) - rank(b));
 }
 
-/** Anthropic: GET /v1/models → data[].{id,display_name}, paginated via after_id. */
+/**
+ * Anthropic: GET <base>/v1/models → data[].{id,display_name}, paginated via
+ * after_id. A gateway (LiteLLM) answers in OpenAI's shape — data[].id, no
+ * has_more — which reads the same way, in one page.
+ */
 async function probeAnthropic(credential: ProbeCredential): Promise<LiveModel[]> {
+  const baseUrl = credential.baseUrl ?? ANTHROPIC_DEFAULT_BASE_URL;
   const headers: Record<string, string> = { "anthropic-version": "2023-06-01" };
   if (credential.kind === "oauth") {
     headers.Authorization = `Bearer ${credential.value}`;
     headers["anthropic-beta"] = "oauth-2025-04-20";
   } else {
     headers["x-api-key"] = credential.value;
+    // A gateway may authenticate its own routes by Bearer only (LiteLLM's
+    // /v1/models does); Anthropic's API itself gets just its own header.
+    if (credential.baseUrl) {
+      headers.Authorization = `Bearer ${credential.value}`;
+    }
   }
 
   const models: LiveModel[] = [];
   let afterId: string | undefined;
   for (let page = 0; page < MAX_PROBE_PAGES; page++) {
-    const url = new URL("https://api.anthropic.com/v1/models");
+    const url = new URL(`${baseUrl}/v1/models`);
     url.searchParams.set("limit", "100");
     if (afterId) url.searchParams.set("after_id", afterId);
     const res = await fetch(url, { headers, signal: AbortSignal.timeout(PROBE_TIMEOUT_MS) });
-    if (!res.ok) throw new Error(`Anthropic /v1/models returned ${res.status}`);
+    if (!res.ok) throw new Error(`${url.origin}${url.pathname} returned ${res.status}`);
     const body = (await res.json()) as {
       data?: Array<{
         id?: string;
@@ -158,6 +221,8 @@ interface ProbeConfig {
   secretCandidates: Array<{ name: string; kind: ProbeCredential["kind"] }>;
   /** Probe function that returns a list of upstream models. */
   probe: LiveProbe;
+  /** The endpoint to probe instead of the provider's own, when one is configured. */
+  baseUrl?: (workspaceId: string | null | undefined) => Promise<string | undefined>;
   /** Which listed models the picker offers (applied to cached lists too). */
   keep?: (model: LiveModel) => boolean;
 }
@@ -172,6 +237,7 @@ const PROBE_CONFIG: Partial<Record<AgentProviderId, ProbeConfig>> = {
       { name: "CLAUDE_CODE_OAUTH_TOKEN", kind: "oauth" },
     ],
     probe: probeAnthropic,
+    baseUrl: anthropicProbeBaseUrl,
   },
   openai: {
     probeKey: "openai",
@@ -367,7 +433,14 @@ async function probeProviderOptions(
     };
   }
 
-  const keyHash = hashKey(credential.value);
+  const baseUrl = await probeConfig.baseUrl?.(opts.workspaceId);
+  if (baseUrl) credential.baseUrl = baseUrl;
+
+  // A gateway is part of the cache identity: pointing the workspace at
+  // another endpoint must not serve the previous one's list for an hour.
+  const keyHash = hashKey(
+    credential.baseUrl ? `${credential.baseUrl}\n${credential.value}` : credential.value,
+  );
 
   if (!opts.forceRefresh) {
     const cached = await readLiveModelsFromCache(provider, keyHash);

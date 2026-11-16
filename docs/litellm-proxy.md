@@ -137,6 +137,15 @@ Pitfalls:
   Without a matching model it lands as a 400 in the spend log. Optionally set
   `ANTHROPIC_SMALL_FAST_MODEL = coding-router`.
 
+**The model picker lists the proxy's models.** The Claude model picker merges a built-in list
+with a live `GET <base>/v1/models`, sent with `ANTHROPIC_API_KEY`. The API server cannot read
+the connection's shell env, which only reaches agent pods. To make the picker ask the proxy
+instead of `api.anthropic.com`, also give the API the base URL. Use either an
+`ANTHROPIC_BASE_URL` global secret in the workspace (admins only) or the
+`ANTHROPIC_BASE_URL` environment variable on the API deployment. The secret wins if both are
+set. Then refresh the list with `GET /api/agents/anthropic/options?refresh=true`. Each base
+URL caches its own list for an hour.
+
 ### 6. Gemini CLI
 
 The base URL (`GOOGLE_GEMINI_BASE_URL`), workspace trust and the key come from the
