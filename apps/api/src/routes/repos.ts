@@ -6,7 +6,10 @@ import {
   isTrustedGitHost,
 } from "../services/git-token-service.js";
 import { createGitPlatform } from "../services/git-platform/index.js";
-import { retrieveSecretWithFallback } from "../services/secret-service.js";
+import {
+  deploymentGitLabHost,
+  workspaceGitLabHosts,
+} from "../services/workspace-gitlab-service.js";
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
@@ -240,9 +243,11 @@ const bareHost = (host: string) =>
 
 /**
  * The hosts `GET /api/repos/browse` can list a platform on, the default
- * first. GitLab: the GITLAB_HOST secret the setup wizard saves, then the
- * self-managed hosts in GITLAB_HOSTS, then the hosts of the GitLab repos the
- * workspace already has, then gitlab.com when GITLAB_HOSTS names it — or
+ * first. GitLab: the workspace's own servers (Workspace Settings → GitLab,
+ * its default first), then the GITLAB_HOST secret the setup wizard saved for
+ * the deployment (where the workspace may use the deployment's GitLab), then
+ * the self-managed hosts in GITLAB_HOSTS, then the hosts of the GitLab repos
+ * the workspace already has, then gitlab.com when GITLAB_HOSTS names it — or
  * when there is nothing else.
  */
 async function browseHosts(
@@ -251,10 +256,8 @@ async function browseHosts(
 ): Promise<string[]> {
   if (platform === "github") return ["github.com"];
   if (platform !== "gitlab") return [];
-  const found: string[] = [];
-  found.push(
-    await retrieveSecretWithFallback("GITLAB_HOST", "global", workspaceId).catch(() => ""),
-  );
+  const found: string[] = [...(await workspaceGitLabHosts(workspaceId).catch(() => []))];
+  found.push((await deploymentGitLabHost(workspaceId).catch(() => null)) ?? "");
   const listed = (process.env.GITLAB_HOSTS ?? process.env.OPTIO_GITLAB_HOSTS ?? "")
     .split(",")
     .map(bareHost);
@@ -418,7 +421,7 @@ export async function repoRoutes(rawApp: FastifyInstance) {
       } catch {
         return empty(
           platform === "gitlab"
-            ? "No GitLab token — add your own GITLAB_TOKEN under Settings, or ask an admin for the organization's."
+            ? "No GitLab token for this workspace — a workspace admin adds one under Workspace Settings → GitLab (or add your own GITLAB_TOKEN secret)."
             : `No ${platform} credentials configured.`,
         );
       }
@@ -594,7 +597,7 @@ export async function repoRoutes(rawApp: FastifyInstance) {
       try {
         const { detectRepoConfig } = await import("../services/repo-detect-service.js");
         // The detector checks deployment-approved destinations before resolving credentials.
-        const detected = await detectRepoConfig(body.repoUrl);
+        const detected = await detectRepoConfig(body.repoUrl, workspaceId);
         if (detected.imagePreset !== "base" || detected.testCommand) {
           await repoService.updateRepo(repo.id, {
             imagePreset: detected.imagePreset,
@@ -782,7 +785,7 @@ export async function repoRoutes(rawApp: FastifyInstance) {
 
       try {
         const { detectRepoConfig } = await import("../services/repo-detect-service.js");
-        const detected = await detectRepoConfig(repo.repoUrl);
+        const detected = await detectRepoConfig(repo.repoUrl, repo.workspaceId ?? null);
         await repoService.updateRepo(id, {
           imagePreset: detected.imagePreset,
           testCommand: detected.testCommand ?? undefined,
