@@ -33,6 +33,7 @@ vi.mock("./local-host-service.js", () => ({
 import {
   getProviderOptions,
   modelBelongsToAgent,
+  normalizeAnthropicBaseUrl,
   resolveLiveModelId,
 } from "./agent-options-service.js";
 
@@ -246,6 +247,110 @@ describe("getProviderOptions", () => {
     // already in the baseline — not duplicated
     const geminiThreeProEntries = result.catalog.models.filter((m) => m.id === "gemini-3-pro");
     expect(geminiThreeProEntries.length).toBe(1);
+  });
+});
+
+describe("getProviderOptions behind an Anthropic-compatible gateway", () => {
+  const originalBaseUrl = process.env.ANTHROPIC_BASE_URL;
+
+  beforeEach(() => {
+    mockRetrieveSecret.mockReset();
+    mockRedisGet.mockReset();
+    mockRedisSet.mockReset();
+    mockRedisGet.mockResolvedValue(null);
+    mockRedisSet.mockResolvedValue("OK");
+    delete process.env.ANTHROPIC_BASE_URL;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    if (originalBaseUrl === undefined) delete process.env.ANTHROPIC_BASE_URL;
+    else process.env.ANTHROPIC_BASE_URL = originalBaseUrl;
+  });
+
+  const secrets = (values: Record<string, string>) =>
+    mockRetrieveSecret.mockImplementation((name: unknown) =>
+      typeof name === "string" && values[name]
+        ? Promise.resolve(values[name])
+        : Promise.reject(new Error("Secret not found")),
+    );
+
+  const gatewayList = () =>
+    vi.fn().mockResolvedValue({
+      ok: true,
+      // LiteLLM answers in OpenAI's shape: no display names, no has_more.
+      json: () =>
+        Promise.resolve({
+          object: "list",
+          data: [{ id: "claude-deepseek-v4.1-flash", object: "model", owned_by: "openai" }],
+        }),
+    });
+
+  it("lists the models of the gateway an ANTHROPIC_BASE_URL secret names", async () => {
+    secrets({ ANTHROPIC_API_KEY: "sk-litellm", ANTHROPIC_BASE_URL: "http://tetris-litellm:4000/" });
+    const fetchSpy = gatewayList();
+    globalThis.fetch = fetchSpy;
+
+    const result = await getProviderOptions("anthropic", { workspaceId: "ws-1" });
+    expect(result.source).toBe("live");
+    expect(result.catalog.models.some((m) => m.id === "claude-deepseek-v4.1-flash")).toBe(true);
+    const url = new URL(String(fetchSpy.mock.calls[0][0]));
+    expect(`${url.origin}${url.pathname}`).toBe("http://tetris-litellm:4000/v1/models");
+    const headers = fetchSpy.mock.calls[0][1].headers as Record<string, string>;
+    expect(headers["x-api-key"]).toBe("sk-litellm");
+    expect(headers.Authorization).toBe("Bearer sk-litellm");
+    expect(mockRetrieveSecret).toHaveBeenCalledWith("ANTHROPIC_BASE_URL", "global", "ws-1");
+  });
+
+  it("falls back to the API process's ANTHROPIC_BASE_URL, keeping a path prefix", async () => {
+    secrets({ ANTHROPIC_API_KEY: "sk-litellm" });
+    process.env.ANTHROPIC_BASE_URL = "https://gateway.internal/anthropic";
+    const fetchSpy = gatewayList();
+    globalThis.fetch = fetchSpy;
+
+    await getProviderOptions("anthropic");
+    const url = new URL(String(fetchSpy.mock.calls[0][0]));
+    expect(`${url.origin}${url.pathname}`).toBe("https://gateway.internal/anthropic/v1/models");
+  });
+
+  it("caches each gateway's list apart", async () => {
+    secrets({ ANTHROPIC_API_KEY: "sk-same" });
+    globalThis.fetch = gatewayList();
+    await getProviderOptions("anthropic");
+    process.env.ANTHROPIC_BASE_URL = "http://tetris-litellm:4000";
+    await getProviderOptions("anthropic");
+    const [direct, gateway] = mockRedisSet.mock.calls.map((c) => c[0]);
+    expect(direct).not.toBe(gateway);
+  });
+
+  it("keeps Anthropic's own API, and its headers, with no or an unusable base URL", async () => {
+    secrets({ ANTHROPIC_API_KEY: "sk-ant-xxx", ANTHROPIC_BASE_URL: "ftp://nope" });
+    const fetchSpy = gatewayList();
+    globalThis.fetch = fetchSpy;
+
+    await getProviderOptions("anthropic");
+    const url = new URL(String(fetchSpy.mock.calls[0][0]));
+    expect(`${url.origin}${url.pathname}`).toBe("https://api.anthropic.com/v1/models");
+    const headers = fetchSpy.mock.calls[0][1].headers as Record<string, string>;
+    expect(headers.Authorization).toBeUndefined();
+  });
+});
+
+describe("normalizeAnthropicBaseUrl", () => {
+  it("accepts http(s) origins and path prefixes, trimming trailing slashes", () => {
+    expect(normalizeAnthropicBaseUrl(" http://litellm:4000/ ")).toBe("http://litellm:4000");
+    expect(normalizeAnthropicBaseUrl("https://gw.example/anthropic//")).toBe(
+      "https://gw.example/anthropic",
+    );
+  });
+
+  it("refuses blanks, other schemes, embedded credentials and query strings", () => {
+    expect(normalizeAnthropicBaseUrl("")).toBeUndefined();
+    expect(normalizeAnthropicBaseUrl(undefined)).toBeUndefined();
+    expect(normalizeAnthropicBaseUrl("not a url")).toBeUndefined();
+    expect(normalizeAnthropicBaseUrl("file:///etc/passwd")).toBeUndefined();
+    expect(normalizeAnthropicBaseUrl("https://user:pw@gw.example")).toBeUndefined();
+    expect(normalizeAnthropicBaseUrl("https://gw.example/?x=1")).toBeUndefined();
   });
 });
 
