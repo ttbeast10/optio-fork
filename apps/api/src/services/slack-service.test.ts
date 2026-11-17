@@ -82,6 +82,7 @@ function makeRepoConfig(overrides: Partial<RepoRecord> = {}): RepoRecord {
     reviewPromptTemplate: null,
     testCommand: null,
     jenkinsJob: null,
+    podScope: null,
     reviewAgentType: null,
     reviewModel: "sonnet",
     externalReviewMode: "off",

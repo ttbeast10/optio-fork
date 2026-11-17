@@ -7,7 +7,7 @@ import { eq, and, sql } from "drizzle-orm";
 import { db } from "../db/client.js";
 import { agentPods, tasks, interactiveSessions, workspaces } from "../db/schema.js";
 import * as podPool from "./agent-pod-pool.js";
-import { podIsolationKey, isolatedPodResource, type PodIsolation } from "./pod-isolation.js";
+import { runPodIsolationKey, isolatedPodResource, type PodIsolation } from "./pod-isolation.js";
 import { getRuntime } from "./container-service.js";
 import type { ContainerHandle, ContainerSpec, RepoImageConfig } from "@optio/shared";
 import type { RunStartResult } from "@optio/container-runtime";
@@ -174,6 +174,8 @@ export async function getOrCreateRepoPod(
     ownerUserId?: string | null;
     isolationPurpose?: string;
     credentialProfile?: unknown;
+    /** Pod scope `run`: this run's own pod (pod-isolation.ts). */
+    runId?: string | null;
   },
 ): Promise<RepoPod> {
   // The legacy CONNECT sidecar does not terminate client TLS or keep per-run
@@ -189,7 +191,7 @@ export async function getOrCreateRepoPod(
     const repoUrl = normalizeRepoUrl(rawRepoUrl);
     const createFn = isStatefulSetEnabled() ? createRepoPodViaStatefulSet : createRepoPod;
     return podPool.pickPod("repo", repoUrl, {
-      isolationKey: podIsolationKey(opts ?? {}),
+      isolationKey: runPodIsolationKey(opts ?? {}),
       preferredPodId: opts?.preferredPodId,
       maxAgentsPerPod: opts?.maxAgentsPerPod ?? 2,
       maxPodInstances: opts?.maxPodInstances ?? 1,
@@ -264,7 +266,7 @@ async function createRepoPod(
     }
   }
 
-  const isolationKey = podIsolationKey({ ...isolation, workspaceId });
+  const isolationKey = runPodIsolationKey({ ...isolation, workspaceId });
   const record = await podPool.insertPod({
     isolationKey,
     workspaceId,
@@ -284,7 +286,8 @@ async function createRepoPod(
   // PVCs only exist for the kubernetes runtime. In docker/fake mode the
   // kubectl shell-out would target whatever cluster the local kubeconfig
   // points at — creating real PVCs from dev/test runs.
-  if (process.env.OPTIO_RUNTIME === "kubernetes") {
+  // A run's own pod keeps nothing: its home is the pod's ephemeral storage.
+  if (process.env.OPTIO_RUNTIME === "kubernetes" && !isolation.runId) {
     try {
       const { execFile } = await import("node:child_process");
       const { promisify } = await import("node:util");
@@ -330,7 +333,10 @@ spec:
   try {
     const { getSharedDirectoriesForRepo, ensureCachePvcForPod } =
       await import("./shared-directory-service.js");
-    const sharedDirs = await getSharedDirectoriesForRepo(repoUrl, workspaceId);
+    // Cache volumes are per pod: one made for a single run would never be reused.
+    const sharedDirs = isolation.runId
+      ? []
+      : await getSharedDirectoriesForRepo(repoUrl, workspaceId);
     if (sharedDirs.length > 0) {
       cacheInfo = await ensureCachePvcForPod(repoUrl, instanceIndex, sharedDirs, isolationKey);
       if (cacheInfo) {
@@ -569,7 +575,7 @@ async function createRepoPodViaStatefulSet(
     }
   }
 
-  const isolationKey = podIsolationKey({ ...isolation, workspaceId });
+  const isolationKey = runPodIsolationKey({ ...isolation, workspaceId });
   const stsName = isolatedPodResource("optio-repo", repoUrl, isolationKey);
   const podName = K8sWorkloadManager.podNameForOrdinal(stsName, instanceIndex);
 
@@ -688,7 +694,10 @@ async function createRepoPodViaStatefulSet(
     try {
       const { getSharedDirectoriesForRepo, ensureCachePvcForPod } =
         await import("./shared-directory-service.js");
-      const sharedDirs = await getSharedDirectoriesForRepo(repoUrl, workspaceId);
+      // Cache volumes are per pod: one made for a single run would never be reused.
+      const sharedDirs = isolation.runId
+        ? []
+        : await getSharedDirectoriesForRepo(repoUrl, workspaceId);
       if (sharedDirs.length > 0) {
         cacheInfo = await ensureCachePvcForPod(repoUrl, instanceIndex, sharedDirs, isolationKey);
         if (cacheInfo) {
@@ -742,6 +751,8 @@ async function createRepoPodViaStatefulSet(
       spec,
       homePvcSize,
       homePvcStorageClass,
+      // A run's own pod: its home and workspace volumes go when it does.
+      deleteVolumesWithPods: !!isolation.runId,
     });
 
     // Scale up if needed
