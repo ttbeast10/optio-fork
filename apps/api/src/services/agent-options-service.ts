@@ -79,7 +79,7 @@ async function anthropicProbeBaseUrl(
   let fromSecret: string | undefined;
   try {
     fromSecret = normalizeAnthropicBaseUrl(
-      await retrieveSecret("ANTHROPIC_BASE_URL", "global", workspaceId ?? undefined),
+      await retrieveSecretWithFallback("ANTHROPIC_BASE_URL", "global", workspaceId ?? undefined),
     );
   } catch {
     // Not configured — fall through to the process env.
