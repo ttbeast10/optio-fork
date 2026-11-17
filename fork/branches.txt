@@ -16,3 +16,4 @@ feat/pod-per-run
 feat/deployment-admins-all-workspaces
 feat/workspace-scoped-config
 feat/anthropic-probe-base-url
+fix/stale-session-cookie
