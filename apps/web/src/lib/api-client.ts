@@ -46,6 +46,7 @@ import type {
 } from "@optio/shared";
 import type { ConfigApplyResult, ConfigStatus, ExportedManifest } from "@optio/shared";
 import type { PrAgentAction, PrInboxResponse } from "@optio/shared";
+import { SIGNED_OUT_ERRORS } from "./auth-cookies";
 
 /** Read the current workspace ID from localStorage (set by workspace switcher). */
 function getWorkspaceId(): string | null {
@@ -60,6 +61,22 @@ function forgetStaleWorkspace(wsId: string): void {
   if (typeof window === "undefined" || localStorage.getItem("optio_workspace_id") !== wsId) return;
   localStorage.removeItem("optio_workspace_id");
   window.location.reload();
+}
+
+/** Pages that work without a session: the middleware's public paths. */
+const SIGNED_OUT_PAGES = ["/login", "/setup", "/auth/callback", "/shared-session"];
+
+/**
+ * The session is gone (expired, revoked, or the person's role changed): go
+ * to sign-in rather than leave the page open with nobody signed in. The web's
+ * proxy has already dropped the dead cookie, so /login is where the browser
+ * would land on the next page load anyway.
+ */
+function sendToSignIn(): void {
+  if (typeof window === "undefined") return;
+  const { pathname, search } = window.location;
+  if (SIGNED_OUT_PAGES.some((p) => pathname.startsWith(p))) return;
+  window.location.assign(`/login?redirect=${encodeURIComponent(pathname + search)}`);
 }
 
 async function request<T>(path: string, opts?: RequestInit): Promise<T> {
@@ -82,6 +99,9 @@ async function request<T>(path: string, opts?: RequestInit): Promise<T> {
     // Forget it and start over in the server's workspace for this user.
     if (res.status === 403 && wsId && body.error === STALE_WORKSPACE_ERROR) {
       forgetStaleWorkspace(wsId);
+    }
+    if (res.status === 401 && SIGNED_OUT_ERRORS.includes(body.error)) {
+      sendToSignIn();
     }
     throw Object.assign(new Error(body.error ?? `API error: ${res.status}`), {
       status: res.status,
