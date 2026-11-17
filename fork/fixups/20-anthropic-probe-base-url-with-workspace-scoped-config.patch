@@ -1,0 +1,26 @@
+Needed while BOTH of these are in fork/branches.txt:
+  feat/anthropic-probe-base-url  (reads an ANTHROPIC_BASE_URL global secret
+                                  with retrieveSecret, as main's probe reads
+                                  the key)
+  feat/workspace-scoped-config   (the probe's key lookup became
+                                  retrieveSecretWithFallback, and the import
+                                  of retrieveSecret went with it)
+
+Git merges the two without a conflict, but the result does not typecheck.
+The base URL is looked up the same way as the key the probe sends it with.
+Whichever of the two pull requests upstream merges second must carry this
+change itself; delete this file then.
+
+diff --git a/apps/api/src/services/agent-options-service.ts b/apps/api/src/services/agent-options-service.ts
+index a36777f..d025a19 100644
+--- a/apps/api/src/services/agent-options-service.ts
++++ b/apps/api/src/services/agent-options-service.ts
+@@ -79,7 +79,7 @@ async function anthropicProbeBaseUrl(
+   let fromSecret: string | undefined;
+   try {
+     fromSecret = normalizeAnthropicBaseUrl(
+-      await retrieveSecret("ANTHROPIC_BASE_URL", "global", workspaceId ?? undefined),
++      await retrieveSecretWithFallback("ANTHROPIC_BASE_URL", "global", workspaceId ?? undefined),
+     );
+   } catch {
+     // Not configured — fall through to the process env.
