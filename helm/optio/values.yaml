@@ -278,6 +278,15 @@ outbound:
   allowPrivate: false
   allowedHosts: []   # e.g. ["*.svc.cluster.local", "vault.internal", "10.1.0.0/16"]
 
+# Jenkins as CI (docs/jenkins.md): a repo that names its Jenkins job (repo
+# settings → Jenkins job) gets that job's builds of a PR's head as CI checks.
+# The API reads Jenkins at `url` only; list its host in outbound.allowedHosts
+# when it is private. The API token goes in existingSecrets.JENKINS_API_TOKEN
+# (or a JENKINS_API_TOKEN secret in the app); none = anonymous reads.
+jenkins:
+  url: ""    # e.g. https://jenkins.example.com (JENKINS_URL)
+  user: ""   # the account the API token belongs to (JENKINS_USER)
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Network Policy
 # Default-deny policy for every agent pod Optio starts (repo pods, Job pods,

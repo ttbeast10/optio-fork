@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Jenkins trigger.** A Jenkins build can start any work — a Repo Task, a Job, a Local automation or a persistent agent's turn. Each `jenkins` trigger has its own URL (`/api/hooks/jenkins/<id>`) and shared secret, takes the Notification plugin's JSON or a Jenkinsfile `post` step, filters on result (`started` / `succeeded` / `failed` / `unstable` / `aborted` / `not_built`), job (with `*` globs) and branch, and hands the build's job, number, URL, branch, commit, parameters and log tail to the prompt. One build result starts one run, however many phases Jenkins reports. See `docs/jenkins.md`. The iOS and Android forms don't offer it yet.
+- **Jenkins as CI.** A repo that names its Jenkins job (repo settings, or `jenkinsJob` in a `Repo` manifest) gets that job's builds of a PR's head as CI checks, read from Jenkins' API (`JENKINS_URL`, `JENKINS_USER`, `JENKINS_API_TOKEN`; Helm `jenkins.*`), so review on CI pass, auto-resume and auto-merge wait for Jenkins, and a resume on a failed build carries the end of its console log. Until Jenkins has a build of the commit, the PR has a pending `Jenkins` check. See `docs/jenkins.md`.
 
 ## [0.25.2] - 2026-11-12
 

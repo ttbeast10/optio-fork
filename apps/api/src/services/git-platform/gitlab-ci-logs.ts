@@ -35,6 +35,8 @@ interface FailedJobLog {
 }
 
 export interface FailedJobs {
+  /** Where the jobs ran: the MR's pipeline (absent), or Jenkins builds (jenkins-ci.ts). */
+  ci?: "jenkins";
   pipelineId: number;
   pipelineUrl?: string;
   /** The jobs whose logs are included (at most `maxJobs`). */
@@ -144,7 +146,7 @@ export async function fetchFailedJobLogs(
 }
 
 /** The last `maxBytes` of a response body, without holding the whole of it. */
-async function readTail(res: Response, maxBytes: number): Promise<string> {
+export async function readTail(res: Response, maxBytes: number): Promise<string> {
   if (!res.body) return (await res.text()).slice(-maxBytes);
   const reader = res.body.getReader();
   const chunks: Uint8Array[] = [];

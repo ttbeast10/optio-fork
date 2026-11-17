@@ -44,6 +44,8 @@ export interface RepoRecord {
   reviewTrigger: string | null;
   reviewPromptTemplate: string | null;
   testCommand: string | null;
+  /** The Jenkins job that builds the repo (jenkins-ci.ts); null = none. */
+  jenkinsJob: string | null;
   reviewAgentType: string | null;
   reviewModel: string | null;
   maxAutoResumes: number | null;
@@ -217,6 +219,7 @@ export async function updateRepo(
     reviewTrigger?: string;
     reviewPromptTemplate?: string | null;
     testCommand?: string;
+    jenkinsJob?: string | null;
     reviewAgentType?: string | null;
     reviewModel?: string | null;
     externalReviewMode?: string;

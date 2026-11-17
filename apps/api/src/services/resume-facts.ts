@@ -4,6 +4,7 @@ import { db } from "../db/client.js";
 import { tasks } from "../db/schema.js";
 import { getGitPlatformForRepo } from "./git-token-service.js";
 import { fetchFailedJobLogs, type FailedJobs } from "./git-platform/gitlab-ci-logs.js";
+import { fetchJenkinsFailedBuilds, jenkinsAccess, repoJenkinsJob } from "./jenkins-ci.js";
 import { logger } from "../logger.js";
 
 /**
@@ -17,8 +18,9 @@ import { logger } from "../logger.js";
  *   Without an answer from the platform: the branch the task started from.
  * - **ci_failure**: the failed jobs' names, stages and the last lines of
  *   their logs, secrets masked, so the agent starts from the error instead
- *   of hunting for it — GitLab's pipeline (git-platform/gitlab-ci-logs.ts)
- *   unless `OPTIO_CI_FAILURE_LOGS=false` (`ciFailureLogsEnabled`).
+ *   of hunting for it — GitLab's pipeline (git-platform/gitlab-ci-logs.ts),
+ *   or the repo's failed Jenkins builds (jenkins-ci.ts) when Jenkins builds
+ *   it, unless `OPTIO_CI_FAILURE_LOGS=false` (`ciFailureLogsEnabled`).
  *
  * Everything here is best effort and bounded in time: the resume waits for
  * these reads at most `FACTS_TIMEOUT_MS`, well under the reconcile job's lock
@@ -38,7 +40,8 @@ export interface ResumeFacts {
 /**
  * Whether a CI-fix resume reads the failed jobs' logs on `platform`:
  * GitLab's unless `OPTIO_CI_FAILURE_LOGS=false`; other platforms retain
- * upstream's wording.
+ * upstream's wording. (A repo Jenkins builds reads its builds' logs on any
+ * platform unless the flag is `false`: `jenkinsFailureLogsEnabled`.)
  */
 export function ciFailureLogsEnabled(
   platform: string,
@@ -48,6 +51,11 @@ export function ciFailureLogsEnabled(
   if (flag === "true") return platform === "gitlab";
   if (flag === "false") return false;
   return platform === "gitlab";
+}
+
+/** Whether a CI-fix resume reads failed Jenkins builds' logs: unless `OPTIO_CI_FAILURE_LOGS=false`. */
+function jenkinsFailureLogsEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  return (env.OPTIO_CI_FAILURE_LOGS ?? "").trim().toLowerCase() !== "false";
 }
 
 /** How long a resume waits for these reads before using the fallback. */
@@ -105,6 +113,28 @@ async function gather(
   const facts: ResumeFacts = { targetBranch: mr.baseBranch || fallback.targetBranch };
 
   const headSha = mr.headSha || snapshot.pr?.headSha;
+  const workspaceId = row?.workspaceId ?? run.spec.workspaceId;
+  const jenkinsJob =
+    reason === "ci_failure" && headSha && jenkinsFailureLogsEnabled()
+      ? await repoJenkinsJob(run.spec.repoUrl, workspaceId)
+      : null;
+  if (jenkinsJob && headSha) {
+    const access = await jenkinsAccess(workspaceId);
+    const jenkins = access
+      ? await fetchJenkinsFailedBuilds(jenkinsJob, headSha, access).catch((err) => {
+          logger.warn(
+            { taskId: run.ref.id, err: err instanceof Error ? err.message : String(err) },
+            "Resume: could not read the failed Jenkins builds",
+          );
+          return null;
+        })
+      : null;
+    // Jenkins failed: that's what to fix. Otherwise the platform's own CI failed.
+    if (jenkins) {
+      facts.ciFailure = jenkins;
+      return facts;
+    }
+  }
   if (reason === "ci_failure" && headSha && ciFailureLogsEnabled(ri.platform)) {
     // Without the logs the resume still gets the target branch.
     const read = fetchFailedJobLogs(ri, token, headSha, { mrIid: pr.prNumber });

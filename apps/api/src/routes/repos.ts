@@ -1,4 +1,5 @@
 import type { GitPlatformType, PlatformLocation } from "@optio/shared";
+import { validJenkinsJob } from "../utils/jenkins-job.js";
 import {
   getGitPlatformForRepo,
   getGitToken,
@@ -92,6 +93,19 @@ const updateRepoSchema = z
     reviewTrigger: z.string().optional(),
     reviewPromptTemplate: z.string().nullable().optional(),
     testCommand: z.string().optional(),
+    jenkinsJob: z
+      .string()
+      .trim()
+      .max(500)
+      .refine((v) => v === "" || validJenkinsJob(v), "Not a Jenkins job name (folder/job)")
+      .transform((v) => v || null)
+      .nullable()
+      .optional()
+      .describe(
+        "The Jenkins job that builds this repo's branches and PRs (`platform/api`, a multibranch " +
+          "pipeline or a single job), under the deployment's JENKINS_URL; its builds of a PR's head " +
+          "are read as CI checks. Empty or null = none.",
+      ),
     reviewAgentType: z
       .enum([...AGENT_TYPES] as [string, ...string[]])
       .superRefine(refineFeature("runtimes"))

@@ -12,6 +12,7 @@ import { getGitHubToken } from "./github-token-service.js";
 import { retrieveSecret, retrieveSecretWithFallback } from "./secret-service.js";
 import { getCodeCommitCredentials } from "./codecommit-credential-service.js";
 import { createGitPlatform } from "./git-platform/index.js";
+import { withRepoJenkins } from "./jenkins-ci.js";
 
 export interface GitTokenContext {
   userId?: string;
@@ -176,7 +177,12 @@ export async function getGitPlatformForRepo(
     ri.platform,
     ri.platform === "gitlab" ? { ...tokenContext, host: ri.host } : tokenContext,
   );
-  const platform = createGitPlatform(ri.platform, token);
+  // A repo Jenkins builds gets its builds as checks too (jenkins-ci.ts).
+  const platform = await withRepoJenkins(
+    createGitPlatform(ri.platform, token),
+    repoUrl,
+    context.workspaceId,
+  );
 
   return { platform, ri, token };
 }
