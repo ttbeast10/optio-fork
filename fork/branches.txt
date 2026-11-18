@@ -11,7 +11,6 @@
 fix/workspace-creation-race
 feat/jenkins-trigger
 feat/jenkins-ci after feat/jenkins-trigger
-feat/gitlab-host-picker
 feat/pod-per-run
 feat/deployment-admins-all-workspaces
 feat/workspace-scoped-config
