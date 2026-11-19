@@ -201,18 +201,18 @@ request), `STATE` (`N ahead`, or `merged upstream` = drop it from the list).
 
 ## Open upstream pull requests
 
-As of 2026-11-18. `fork/status.sh` and the daily scheduled check (which runs
+As of 2026-11-19. `fork/status.sh` and the daily scheduled check (which runs
 `fork/sync.sh` + `fork/rebase.sh`) are the truth.
 
 | Branch                                  | Upstream     | Note                                                                                                                                           |
 | --------------------------------------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `fix/workspace-creation-race`           | #801         | Approved; the maintainer merged main in himself (don't rebase it). Waits on main's picomatch audit fix. Shares a function with #766.           |
+| `fix/workspace-creation-race`           | #801, merged | In `main` (2026-11-18). #766 now carries the fixup it needed.                                                                                  |
 | `feat/gitlab-host-picker`               | #802, merged |                                                                                                                                                |
 | `feat/pod-per-run`                      | #803         | CodeQL alert fixed (2026-11-14). Depends on upstream issue #811 (fresh-clone credential helper) and is affected by #808 (preserved worktrees). |
 | `feat/deployment-admins-all-workspaces` | #766         | See #801.                                                                                                                                      |
 | `feat/workspace-scoped-config`          | #768         | Adds two migrations. Also carries per-workspace GitLab (was fork PRs #5 / #6), events per workspace, and the share tag.                        |
-| `feat/jenkins-trigger`                  | #821         | Approved, with five non-blocking follow-ups in the review; the maintainer will merge main in (don't rebase it).                                |
-| `feat/jenkins-ci`                       | to open      | Stacked on `feat/jenkins-trigger`; description in `fork/pr/feat-jenkins-ci.md` says so. Adds a migration.                                      |
+| `feat/jenkins-trigger`                  | #821, merged | In `main` (2026-11-18). Five non-blocking follow-ups in the review.                                                                            |
+| `feat/jenkins-ci`                       | to open      | Based on `main` now that #821 is merged. Description in `fork/pr/feat-jenkins-ci.md`. Adds a migration.                                        |
 | `fix/stale-session-cookie`              | to open      | A dead session cookie no longer leaves people signed out until they clear browser data. Open with `fork/pr.sh fix/stale-session-cookie`.       |
 | Jira Data Center                        | #767, merged | In `main`; nothing left to do.                                                                                                                 |
 

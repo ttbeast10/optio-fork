@@ -8,9 +8,7 @@
 # Remove a line when its PR is merged upstream: the change then comes from main.
 # fork/overlay (deploy/airgap/ and fork/) is always merged last and is not listed.
 
-fix/workspace-creation-race
-feat/jenkins-trigger
-feat/jenkins-ci after feat/jenkins-trigger
+feat/jenkins-ci
 feat/pod-per-run
 feat/deployment-admins-all-workspaces
 feat/workspace-scoped-config

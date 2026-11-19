@@ -4,7 +4,7 @@ feat(ci): read a repo's Jenkins builds as its PRs' CI checks
 
 Jenkins as a repo's CI. A repo names the Jenkins job that builds it, and that job's builds of a PR's head count as the PR's CI checks. Review on CI pass, auto-resume on a failed build, and auto-merge then wait for Jenkins the way they wait for GitHub checks or a GitLab pipeline.
 
-**Stacked on #JENKINS_TRIGGER_PR (Jenkins trigger).** Until that one is merged this diff also shows its commit; the change here is only the second commit, `feat(ci): read a repo's Jenkins builds as its PRs' CI checks`. I will rebase this onto `main` as soon as the trigger PR merges.
+Follow-up to #821 (Jenkins builds start work, merged): the same Jenkins connection, now as a repo's CI. Based on current `main`.
 
 ## Changes
 
@@ -35,11 +35,13 @@ Jenkins as a repo's CI. A repo names the Jenkins job that builds it, and that jo
 
 - `jenkins-ci.test.ts` (13): job paths and refusals, `JENKINS_URL` parsing, multibranch and plain trees, matching by SHA1 / `pullHash` / MR `origin.hash`, newest-per-job, check mapping, pending on no build / HTTP error / network error, the platform wrapper (merges checks, keeps every other method and `this`), failed-build console tails masked and read under `JENKINS_URL`, the Jenkins resume prompt, access from env.
 
-LOCAL_RESULTS
+Run locally on the current commit (rebased on `main` at 1ffcc03, v0.26.1): `pnpm check:push` — lint, knip, prettier, typecheck, the Helm checks, unit tests, the API integration tier (which applies the migration), the full API e2e tier and the full browser suite (Chromium and Firefox) all pass. One test could not pass in my sandbox and fails there the same way on unchanged `main`: `outbound-url.test.ts`, which needs real loopback/DNS.
+
+- [x] `pnpm check:push` passes, except the sandbox-only test above.
 
 ## Related
 
-Stacked on #JENKINS_TRIGGER_PR. Migration ordering: #803 (pod scope) and #768 (workspace-scoped config) also add migrations; whichever lands later gets its journal entry renumbered on rebase.
+Follows #821. Migration ordering: #803 (pod scope) and #768 (workspace-scoped config) also add migrations; whichever lands later gets its journal entry renumbered on rebase.
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 
